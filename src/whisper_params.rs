@@ -811,6 +811,54 @@ impl<'a, 'b> FullParams<'a, 'b> {
             .into_raw() as *const c_char;
     }
 
+    /// # EXPERIMENTAL
+    ///
+    /// Enable capturing top N candidate tokens with their probabilities.
+    /// When enabled, you can query top candidates for each token after transcription.
+    ///
+    /// Defaults to false.
+    pub fn set_capture_top_candidates(&mut self, capture: bool) {
+        self.fp.capture_top_candidates = capture;
+    }
+
+    /// # EXPERIMENTAL
+    ///
+    /// Set the number of top candidates to capture per token.
+    /// Only has an effect if `set_capture_top_candidates(true)` is called.
+    ///
+    /// Defaults to 20.
+    pub fn set_n_top_candidates(&mut self, n: c_int) {
+        self.fp.n_top_candidates = n;
+    }
+
+    /// # EXPERIMENTAL
+    ///
+    /// Skip encoding and reuse kv_cross from previous whisper_full() call.
+    /// Useful for decode-only passes when exploring alternative token sequences.
+    ///
+    /// Defaults to false.
+    pub fn set_skip_encode(&mut self, skip: bool) {
+        self.fp.skip_encode = skip;
+    }
+
+    /// # EXPERIMENTAL
+    ///
+    /// Set forced tokens at the start of decoding.
+    /// These tokens are output directly instead of sampling, useful for exploring
+    /// alternative transcriptions. Decoding continues normally after forced tokens
+    /// are exhausted.
+    ///
+    /// Calling this more than once will overwrite the previous forced tokens.
+    ///
+    /// Defaults to empty.
+    pub fn set_forced_tokens(&mut self, tokens: &'b [c_int]) {
+        let tokens_ptr: *const whisper_token = tokens.as_ptr();
+        let tokens_len: c_int = tokens.len() as c_int;
+
+        self.fp.forced_tokens = tokens_ptr;
+        self.fp.forced_n_tokens = tokens_len;
+    }
+
     /// Enable or disable VAD.
     ///
     /// # Panics

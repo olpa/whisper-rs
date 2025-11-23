@@ -9,7 +9,7 @@ mod token;
 
 pub use iterator::WhisperStateSegmentIterator;
 pub use segment::WhisperSegment;
-pub use token::WhisperToken;
+pub use token::{WhisperToken, WhisperTokenCandidate};
 
 /// Rustified pointer to a Whisper state.
 #[derive(Debug)]
