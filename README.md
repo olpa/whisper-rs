@@ -82,6 +82,56 @@ All disabled by default unless otherwise specified.
 See [BUILDING.md](BUILDING.md) for instructions for building whisper-rs on Windows and OSX M1. Linux builds should just
 work out of the box.
 
+### Installing to HANDSFREEAI_DEV_HOME
+
+To build and install whisper-rs to `$HANDSFREEAI_DEV_HOME/whisper-rs/` with the same layout as whisper.cpp:
+
+```bash
+# Build and install for Linux only
+./build-and-install.sh
+
+# Build and install for Linux + Android targets
+./build-and-install.sh --with-android
+```
+
+This creates a directory structure similar to whisper.cpp:
+```
+$HANDSFREEAI_DEV_HOME/whisper-rs/
+├── include/              # Documentation and bindings reference
+├── linux-x86_64/        # Native Linux Rust libraries (.rlib)
+├── android/             # Android Rust libraries by ABI
+│   ├── arm64-v8a/
+│   ├── armeabi-v7a/
+│   ├── x86_64/
+│   └── x86/
+├── README.md            # Usage instructions
+└── VERSION              # Build information
+```
+
+### Building for Android
+
+This project uses prebuilt whisper.cpp libraries for Android. To build for Android:
+
+**Prerequisites:**
+- Set `HANDSFREEAI_DEV_HOME` environment variable pointing to the directory containing prebuilt whisper.cpp libraries
+- Install Android target: `rustup target add aarch64-linux-android` (or other Android targets)
+- Prebuilt whisper.cpp libraries must be available at `$HANDSFREEAI_DEV_HOME/whisper.cpp/android/{ABI}/`
+  where `{ABI}` is one of: `arm64-v8a`, `armeabi-v7a`, `x86_64`, `x86`
+
+**Build command:**
+```bash
+export HANDSFREEAI_DEV_HOME=/path/to/your/dev/home
+cargo build --target aarch64-linux-android --release
+```
+
+**Supported Android targets:**
+- `aarch64-linux-android` → `arm64-v8a` (64-bit ARM, most modern phones)
+- `armv7-linux-androideabi` → `armeabi-v7a` (32-bit ARM, older devices)
+- `x86_64-linux-android` → `x86_64` (64-bit x86, emulators)
+- `i686-linux-android` → `x86` (32-bit x86, older emulators)
+
+**Note:** Android builds use bundled Rust bindings in `sys/src/bindings.rs` since bindgen requires Android NDK headers. The bundled bindings are generated from the host platform and include all backtrack branch features.
+
 ## Troubleshooting
 
 * Something other than Windows/macOS/Linux isn't working!
