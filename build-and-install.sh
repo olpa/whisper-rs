@@ -18,6 +18,8 @@ echo "    Install to: $INSTALL_ROOT"
 
 # Create directory structure
 mkdir -p "${INSTALL_ROOT}/include"
+mkdir -p "${INSTALL_ROOT}/src/whisper_state"
+mkdir -p "${INSTALL_ROOT}/sys/src"
 mkdir -p "${INSTALL_ROOT}/linux-x86_64"
 mkdir -p "${INSTALL_ROOT}/android/arm64-v8a"
 mkdir -p "${INSTALL_ROOT}/android/armeabi-v7a"
@@ -25,6 +27,25 @@ mkdir -p "${INSTALL_ROOT}/android/x86_64"
 mkdir -p "${INSTALL_ROOT}/android/x86"
 
 cd "$REPO_ROOT"
+
+# Copy Cargo package files
+echo ""
+echo "==> Copying Cargo package files..."
+cp -v Cargo.toml "${INSTALL_ROOT}/"
+cp -v build.rs "${INSTALL_ROOT}/"
+cp -v LICENSE "${INSTALL_ROOT}/" 2>/dev/null || true
+
+# Copy source files
+echo "    Copying src/ directory..."
+cp -v src/*.rs "${INSTALL_ROOT}/src/"
+cp -v src/whisper_state/*.rs "${INSTALL_ROOT}/src/whisper_state/"
+
+# Copy sys package files
+echo "    Copying sys/ package..."
+cp -v sys/Cargo.toml "${INSTALL_ROOT}/sys/"
+cp -v sys/build.rs "${INSTALL_ROOT}/sys/"
+cp -v sys/wrapper.h "${INSTALL_ROOT}/sys/"
+cp -v sys/src/*.rs "${INSTALL_ROOT}/sys/src/"
 
 # Build for Linux x86_64 (native)
 echo ""
@@ -141,21 +162,33 @@ cat > "${INSTALL_ROOT}/README.md" << 'EOF'
 
 Rust bindings to whisper.cpp (backtrack branch) for Linux and Android platforms.
 
+This is a complete Cargo package with prebuilt .rlib files for faster builds.
+
 ## Directory Structure
 
 ```
 whisper-rs/
-├── include/              # Documentation and bindings
-│   ├── README.md        # Usage instructions
-│   └── bindings.rs      # FFI bindings reference
-├── linux-x86_64/        # Native Linux libraries
+├── Cargo.toml           # Main crate manifest
+├── src/                 # Rust source files
+├── sys/                 # whisper-rs-sys subcrate
+│   ├── Cargo.toml
+│   ├── build.rs
+│   ├── wrapper.h
+│   └── src/
+│       ├── lib.rs
+│       └── bindings.rs  # FFI bindings
+├── include/             # Documentation
+│   ├── README.md
+│   └── bindings.rs      # FFI bindings reference (copy)
+├── linux-x86_64/        # Prebuilt Linux libraries
 │   └── libwhisper_rs.rlib
-└── android/             # Android libraries by ABI
-    ├── arm64-v8a/       # 64-bit ARM (most modern phones)
-    ├── armeabi-v7a/     # 32-bit ARM (older devices)
-    ├── x86_64/          # 64-bit x86 (emulators)
-    └── x86/             # 32-bit x86 (older emulators)
-        └── libwhisper_rs.rlib
+├── android/             # Prebuilt Android libraries by ABI
+│   ├── arm64-v8a/
+│   ├── armeabi-v7a/
+│   ├── x86_64/
+│   └── x86/
+├── README.md
+└── VERSION
 ```
 
 ## Dependencies
@@ -172,46 +205,28 @@ export HANDSFREEAI_DEV_HOME=/path/to/dev/home
 
 ## Usage in Rust Projects
 
-### Option 1: Use as Cargo Dependency
-
-In your `Cargo.toml`:
-```toml
-[dependencies]
-whisper-rs = { path = "${HANDSFREEAI_DEV_HOME}/whisper-rs" }
-```
-
-### Option 2: Link Prebuilt Libraries
-
-For cross-compilation or to avoid rebuilding:
+Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-whisper-rs = { version = "0.15" }
+whisper-rs = { path = "/path/to/whisper-rs" }
+# Or using environment variable:
+# whisper-rs = { path = "${HANDSFREEAI_DEV_HOME}/whisper-rs" }
 ```
 
-Then in your `build.rs`:
-```rust
-fn main() {
-    let target = std::env::var("TARGET").unwrap();
+This will use the prebuilt .rlib files automatically based on your target platform.
+The package includes all source files, so Cargo can:
+- Use prebuilt libraries when available
+- Recompile if needed for different configurations
+- Support both Linux and Android targets seamlessly
 
-    let base_path = std::env::var("HANDSFREEAI_DEV_HOME")
-        .expect("HANDSFREEAI_DEV_HOME not set");
+### Environment Setup
 
-    let lib_dir = if target.contains("android") {
-        let abi = match target.as_str() {
-            "aarch64-linux-android" => "arm64-v8a",
-            "armv7-linux-androideabi" => "armeabi-v7a",
-            "x86_64-linux-android" => "x86_64",
-            "i686-linux-android" => "x86",
-            _ => panic!("Unsupported Android target"),
-        };
-        format!("{}/whisper-rs/android/{}", base_path, abi)
-    } else {
-        format!("{}/whisper-rs/linux-x86_64", base_path)
-    };
+Ensure `HANDSFREEAI_DEV_HOME` is set and points to the directory containing
+both `whisper.cpp/` and `whisper-rs/`:
 
-    println!("cargo:rustc-link-search=native={}", lib_dir);
-}
+```bash
+export HANDSFREEAI_DEV_HOME=/path/to/dev/home
 ```
 
 ## Backtrack Branch Features
