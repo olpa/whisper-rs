@@ -40,6 +40,8 @@ pub enum WhisperError {
     InvalidPointer,
     /// Invalid string format detected (Phase 1.2)
     InvalidString,
+    /// Buffer overflow: C function attempted to write more data than allocated (Phase 1.3)
+    BufferOverflow { expected: usize, actual: usize },
     /// Generic whisper error. Varies depending on the function.
     GenericError(c_int),
     /// Whisper failed to convert the provided text into tokens.
@@ -111,6 +113,11 @@ impl std::fmt::Display for WhisperError {
             NullPointer => write!(f, "Whisper returned a null pointer."),
             InvalidPointer => write!(f, "Invalid pointer detected."),
             InvalidString => write!(f, "Invalid string format detected."),
+            BufferOverflow { expected, actual } => write!(
+                f,
+                "Buffer overflow: expected {} tokens, got {}",
+                expected, actual
+            ),
             InvalidText => write!(
                 f,
                 "Whisper failed to convert the provided text into tokens."

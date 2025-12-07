@@ -3,6 +3,7 @@ use crate::utilities::c_str_from_ptr_with_limit;
 use crate::WhisperTokenId;
 use std::borrow::Cow;
 use std::ffi::{c_int, CStr, CString};
+use std::mem::MaybeUninit;
 
 /// Safe Rust wrapper around a Whisper context.
 ///
@@ -87,26 +88,42 @@ impl WhisperInnerContext {
         text: &str,
         max_tokens: usize,
     ) -> Result<Vec<WhisperTokenId>, WhisperError> {
-        // convert the text to a nul-terminated C string. Will raise an error if the text contains
-        // any nul bytes.
         let text = CString::new(text)?;
-        // allocate at least max_tokens to ensure the memory is valid
-        let mut tokens: Vec<WhisperTokenId> = Vec::with_capacity(max_tokens);
+
+        // Use MaybeUninit for proper uninitialized memory handling (Phase 1.3)
+        let mut tokens: Vec<MaybeUninit<WhisperTokenId>> = Vec::with_capacity(max_tokens);
+        unsafe { tokens.set_len(max_tokens); }
+
         let ret = unsafe {
             whisper_rs_sys::whisper_tokenize(
                 self.ctx,
                 text.as_ptr(),
-                tokens.as_mut_ptr(),
+                tokens.as_mut_ptr() as *mut _,
                 max_tokens as c_int,
             )
         };
+
         if ret == -1 {
-            Err(WhisperError::InvalidText)
-        } else {
-            // SAFETY: when ret != -1, we know that the length of the vector is at least ret tokens
-            unsafe { tokens.set_len(ret as usize) };
-            Ok(tokens)
+            return Err(WhisperError::InvalidText);
         }
+
+        // Validate return value to prevent buffer overflow (Phase 1.3)
+        let ret_usize = ret as usize;
+        if ret_usize > max_tokens {
+            return Err(WhisperError::BufferOverflow {
+                expected: max_tokens,
+                actual: ret_usize,
+            });
+        }
+
+        // Safe to assume first ret elements are initialized
+        let initialized = &tokens[..ret_usize];
+        let result: Vec<WhisperTokenId> = initialized
+            .iter()
+            .map(|t| unsafe { t.assume_init() })
+            .collect();
+
+        Ok(result)
     }
 
     /// Get n_vocab.
