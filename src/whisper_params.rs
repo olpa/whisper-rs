@@ -50,6 +50,9 @@ pub struct FullParams<'a, 'b> {
     initial_prompt_cstring: Option<CString>,
     vad_model_path_cstring: Option<CString>,
 
+    // Store owned forced tokens vector to prevent use-after-free (Phase 2.2.1)
+    forced_tokens: Option<Vec<c_int>>,
+
     progress_callback_safe: Option<Arc<Box<dyn FnMut(i32)>>>,
     abort_callback_safe: Option<Arc<Box<dyn FnMut() -> bool>>>,
     segment_calllback_safe: Option<Arc<SegmentCallbackFn>>,
@@ -94,6 +97,7 @@ impl<'a, 'b> FullParams<'a, 'b> {
             language_cstring: None,
             initial_prompt_cstring: None,
             vad_model_path_cstring: None,
+            forced_tokens: None,
             progress_callback_safe: None,
             abort_callback_safe: None,
             segment_calllback_safe: None,
@@ -935,7 +939,41 @@ impl<'a, 'b> FullParams<'a, 'b> {
 
     /// # EXPERIMENTAL
     ///
-    /// Set forced tokens at the start of decoding.
+    /// Set forced tokens at the start of decoding (takes ownership - safe).
+    /// These tokens are output directly instead of sampling, useful for exploring
+    /// alternative transcriptions. Decoding continues normally after forced tokens
+    /// are exhausted.
+    ///
+    /// This method takes ownership of the token vector, ensuring it remains valid
+    /// for the lifetime of the parameters.
+    ///
+    /// Calling this more than once will overwrite the previous forced tokens.
+    ///
+    /// Defaults to empty.
+    pub fn set_forced_tokens_owned(&mut self, tokens: Vec<c_int>) {
+        if tokens.is_empty() {
+            self.forced_tokens = None;
+            self.fp.forced_tokens = std::ptr::null();
+            self.fp.forced_n_tokens = 0;
+        } else {
+            self.fp.forced_tokens = tokens.as_ptr();
+            self.fp.forced_n_tokens = tokens.len() as c_int;
+            self.forced_tokens = Some(tokens);
+        }
+    }
+
+    /// # EXPERIMENTAL
+    ///
+    /// Set forced tokens at the start of decoding (borrows - unsafe).
+    ///
+    /// **Prefer [`Self::set_forced_tokens_owned()`] for safe code.**
+    ///
+    /// # Safety Warning
+    ///
+    /// The token slice must remain valid for the entire lifetime of these parameters
+    /// and during the transcription call. If the source vector is dropped or moved,
+    /// this will cause undefined behavior.
+    ///
     /// These tokens are output directly instead of sampling, useful for exploring
     /// alternative transcriptions. Decoding continues normally after forced tokens
     /// are exhausted.
@@ -943,12 +981,22 @@ impl<'a, 'b> FullParams<'a, 'b> {
     /// Calling this more than once will overwrite the previous forced tokens.
     ///
     /// Defaults to empty.
+    #[deprecated(
+        since = "0.16.0",
+        note = "Use set_forced_tokens_owned() instead. This method borrows tokens which may be invalidated."
+    )]
     pub fn set_forced_tokens(&mut self, tokens: &'b [c_int]) {
-        let tokens_ptr: *const whisper_token = tokens.as_ptr();
-        let tokens_len: c_int = tokens.len() as c_int;
+        // For backwards compatibility, copy the tokens internally
+        self.set_forced_tokens_owned(tokens.to_vec());
+    }
 
-        self.fp.forced_tokens = tokens_ptr;
-        self.fp.forced_n_tokens = tokens_len;
+    /// Clear any previously set forced tokens.
+    ///
+    /// Sets the forced tokens to empty and clears the owned vector.
+    pub fn clear_forced_tokens(&mut self) {
+        self.forced_tokens = None;
+        self.fp.forced_tokens = std::ptr::null();
+        self.fp.forced_n_tokens = 0;
     }
 
     /// Enable or disable VAD.
