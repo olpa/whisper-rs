@@ -431,26 +431,58 @@ impl<'a, 'b> FullParams<'a, 'b> {
         F: FnMut(SegmentCallbackData) + 'static,
         O: Into<Option<F>>,
     {
-        use std::ffi::{c_void, CStr};
+        use std::ffi::c_void;
         use whisper_rs_sys::{whisper_context, whisper_state};
 
         extern "C" fn trampoline<F>(
-            _: *mut whisper_context,
+            ctx: *mut whisper_context,
             state: *mut whisper_state,
             n_new: i32,
             user_data: *mut c_void,
         ) where
             F: FnMut(SegmentCallbackData) + 'static,
         {
+            // NEW: Early validation (Phase 1.4.1)
+            if ctx.is_null() || state.is_null() || user_data.is_null() {
+                eprintln!("ERROR: Null pointer in segment callback, skipping");
+                return;
+            }
+
+            if n_new < 0 {
+                eprintln!("ERROR: Invalid n_new value: {}, skipping", n_new);
+                return;
+            }
+
             unsafe {
                 let user_data = &mut *(user_data as *mut SegmentCallbackFn);
                 let n_segments = whisper_rs_sys::whisper_full_n_segments_from_state(state);
+
+                // NEW: Validate segment count (Phase 1.4.1)
+                if n_segments < 0 || n_new > n_segments {
+                    eprintln!("ERROR: Invalid segment count: n_segments={}, n_new={}",
+                              n_segments, n_new);
+                    return;
+                }
+
                 let s0 = n_segments - n_new;
-                //let user_data = user_data as *mut Box<dyn FnMut(SegmentCallbackData)>;
 
                 for i in s0..n_segments {
                     let text = whisper_rs_sys::whisper_full_get_segment_text_from_state(state, i);
-                    let text = CStr::from_ptr(text);
+
+                    // NEW: Null check (Phase 1.4.1)
+                    if text.is_null() {
+                        eprintln!("WARN: Null text for segment {}, skipping", i);
+                        continue;
+                    }
+
+                    // NEW: Safe string conversion with limit (Phase 1.4.1)
+                    let text = match crate::utilities::c_str_from_ptr_with_limit(text, 10000) {
+                        Ok(cstr) => cstr,
+                        Err(e) => {
+                            eprintln!("ERROR: Invalid string for segment {}: {:?}", i, e);
+                            continue;
+                        }
+                    };
 
                     let t0 = whisper_rs_sys::whisper_full_get_segment_t0_from_state(state, i);
                     let t1 = whisper_rs_sys::whisper_full_get_segment_t1_from_state(state, i);
@@ -500,26 +532,58 @@ impl<'a, 'b> FullParams<'a, 'b> {
         F: FnMut(SegmentCallbackData) + 'static,
         O: Into<Option<F>>,
     {
-        use std::ffi::{c_void, CStr};
+        use std::ffi::c_void;
         use whisper_rs_sys::{whisper_context, whisper_state};
 
         extern "C" fn trampoline<F>(
-            _: *mut whisper_context,
+            ctx: *mut whisper_context,
             state: *mut whisper_state,
             n_new: i32,
             user_data: *mut c_void,
         ) where
             F: FnMut(SegmentCallbackData) + 'static,
         {
+            // NEW: Early validation (Phase 1.4.1)
+            if ctx.is_null() || state.is_null() || user_data.is_null() {
+                eprintln!("ERROR: Null pointer in segment callback (lossy), skipping");
+                return;
+            }
+
+            if n_new < 0 {
+                eprintln!("ERROR: Invalid n_new value: {}, skipping", n_new);
+                return;
+            }
+
             unsafe {
                 let user_data = &mut *(user_data as *mut SegmentCallbackFn);
                 let n_segments = whisper_rs_sys::whisper_full_n_segments_from_state(state);
+
+                // NEW: Validate segment count (Phase 1.4.1)
+                if n_segments < 0 || n_new > n_segments {
+                    eprintln!("ERROR: Invalid segment count: n_segments={}, n_new={}",
+                              n_segments, n_new);
+                    return;
+                }
+
                 let s0 = n_segments - n_new;
-                //let user_data = user_data as *mut Box<dyn FnMut(SegmentCallbackData)>;
 
                 for i in s0..n_segments {
                     let text = whisper_rs_sys::whisper_full_get_segment_text_from_state(state, i);
-                    let text = CStr::from_ptr(text);
+
+                    // NEW: Null check (Phase 1.4.1)
+                    if text.is_null() {
+                        eprintln!("WARN: Null text for segment {}, skipping", i);
+                        continue;
+                    }
+
+                    // NEW: Safe string conversion with limit (Phase 1.4.1)
+                    let text = match crate::utilities::c_str_from_ptr_with_limit(text, 10000) {
+                        Ok(cstr) => cstr,
+                        Err(e) => {
+                            eprintln!("ERROR: Invalid string for segment {}: {:?}", i, e);
+                            continue;
+                        }
+                    };
 
                     let t0 = whisper_rs_sys::whisper_full_get_segment_t0_from_state(state, i);
                     let t1 = whisper_rs_sys::whisper_full_get_segment_t1_from_state(state, i);
@@ -588,13 +652,19 @@ impl<'a, 'b> FullParams<'a, 'b> {
         use whisper_rs_sys::{whisper_context, whisper_state};
 
         unsafe extern "C" fn trampoline<F>(
-            _: *mut whisper_context,
-            _: *mut whisper_state,
+            ctx: *mut whisper_context,
+            state: *mut whisper_state,
             progress: c_int,
             user_data: *mut c_void,
         ) where
             F: FnMut(i32),
         {
+            // NEW: Early validation (Phase 1.4.1)
+            if ctx.is_null() || state.is_null() || user_data.is_null() {
+                eprintln!("ERROR: Null pointer in progress callback, skipping");
+                return;
+            }
+
             let user_data = &mut *(user_data as *mut F);
             user_data(progress);
         }
@@ -636,6 +706,12 @@ impl<'a, 'b> FullParams<'a, 'b> {
         where
             F: FnMut() -> bool,
         {
+            // NEW: Early validation (Phase 1.4.1)
+            if user_data.is_null() {
+                eprintln!("ERROR: Null pointer in abort callback, returning false");
+                return false;
+            }
+
             let user_data = &mut *(user_data as *mut F);
             user_data()
         }
