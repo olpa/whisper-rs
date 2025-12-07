@@ -130,7 +130,31 @@ impl<'a> WhisperSegment<'a> {
         Ok(self.to_raw_cstr()?.to_bytes())
     }
 
-    /// Get the text of this segment.
+    /// Get the text of this segment as an owned String.
+    ///
+    /// This is the safe method to use when you need to store the text.
+    /// It copies the string from C++ memory to Rust-owned memory.
+    ///
+    /// # Returns
+    /// * On success: the UTF-8 validated owned string.
+    /// * On failure: [`WhisperError::NullPointer`] or [`WhisperError::InvalidUtf8`]
+    ///
+    /// # C++ equivalent
+    /// `const char * whisper_full_get_segment_text(struct whisper_context * ctx, int i_segment)`
+    pub fn to_string(&self) -> Result<String, WhisperError> {
+        Ok(self.to_raw_cstr()?.to_str()?.to_string())
+    }
+
+    /// Get the text of this segment as a borrowed reference.
+    ///
+    /// # Safety Warning
+    ///
+    /// The returned reference is only valid as long as:
+    /// 1. The WhisperState is not dropped
+    /// 2. No re-transcription occurs on the same state
+    /// 3. The C++ side doesn't free the string
+    ///
+    /// **Prefer [`Self::to_string()`] for safe code.**
     ///
     /// # Returns
     /// * On success: the UTF-8 validated string.
@@ -138,6 +162,10 @@ impl<'a> WhisperSegment<'a> {
     ///
     /// # C++ equivalent
     /// `const char * whisper_full_get_segment_text(struct whisper_context * ctx, int i_segment)`
+    #[deprecated(
+        since = "0.16.0",
+        note = "Use to_string() instead. This method returns a reference to C++ memory that may be invalidated."
+    )]
     pub fn to_str(&self) -> Result<&'a str, WhisperError> {
         Ok(self.to_raw_cstr()?.to_str()?)
     }

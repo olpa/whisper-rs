@@ -256,6 +256,22 @@ impl WhisperContext {
         self.ctx.model_type_readable_bytes()
     }
     /// Undocumented but exposed function in the C++ API.
+    /// Returns an owned String (safe).
+    ///
+    /// # Returns
+    /// * On success: `Ok(String)`
+    /// * On error: `Err(WhisperError::NullPointer)` or `Err(WhisperError::InvalidUtf8)`
+    ///
+    /// # C++ equivalent
+    /// `const char * whisper_model_type_readable(struct whisper_context * ctx);`
+    pub fn model_type_readable_string(&self) -> Result<String, WhisperError> {
+        self.ctx.model_type_readable_string()
+    }
+
+    /// Undocumented but exposed function in the C++ API.
+    /// Returns a borrowed reference.
+    ///
+    /// **Prefer [`Self::model_type_readable_string()`] for safe code.**
     ///
     /// # Returns
     /// * On success: `Ok(&str)`
@@ -263,6 +279,11 @@ impl WhisperContext {
     ///
     /// # C++ equivalent
     /// `const char * whisper_model_type_readable(struct whisper_context * ctx);`
+    #[deprecated(
+        since = "0.16.0",
+        note = "Use model_type_readable_string() instead. This method returns a reference to C++ memory."
+    )]
+    #[allow(deprecated)]
     pub fn model_type_readable_str(&self) -> Result<&str, WhisperError> {
         self.ctx.model_type_readable_str()
     }
@@ -305,7 +326,28 @@ impl WhisperContext {
         self.ctx.token_to_bytes(token_id)
     }
 
-    /// Convert a token ID to a string.
+    /// Convert a token ID to an owned String (safe).
+    ///
+    /// **Danger**: this function is liable to throw a C++ exception if you pass an out-of-bounds index.
+    /// See [`Self::token_to_bytes`] for more information.
+    ///
+    /// # Arguments
+    /// * `token_id`: ID of the token.
+    ///
+    /// # Returns
+    /// * On success: `Ok(String)`
+    /// * On out-of-bounds index: foreign runtime exception, causing your entire program to abort.
+    /// * On other error: `Err(WhisperError::NullPointer)` or `Err(WhisperError::InvalidUtf8)`
+    ///
+    /// # C++ equivalent
+    /// `const char * whisper_token_to_str(struct whisper_context * ctx, whisper_token token)`
+    pub fn token_to_string(&self, token_id: WhisperTokenId) -> Result<String, WhisperError> {
+        self.ctx.token_to_string(token_id)
+    }
+
+    /// Convert a token ID to a string (borrowed reference).
+    ///
+    /// **Prefer [`Self::token_to_string()`] for safe code.**
     ///
     /// **Danger**: this function is liable to throw a C++ exception if you pass an out-of-bounds index.
     /// See [`Self::token_to_bytes`] for more information.
@@ -320,6 +362,11 @@ impl WhisperContext {
     ///
     /// # C++ equivalent
     /// `const char * whisper_token_to_str(struct whisper_context * ctx, whisper_token token)`
+    #[deprecated(
+        since = "0.16.0",
+        note = "Use token_to_string() instead. This method returns a reference to C++ memory."
+    )]
+    #[allow(deprecated)]
     pub fn token_to_str(&self, token_id: WhisperTokenId) -> Result<&str, WhisperError> {
         self.ctx.token_to_str(token_id)
     }
