@@ -1,4 +1,43 @@
 use crate::WhisperError;
+use std::ffi::{c_char, CStr};
+
+/// Safely converts a C string pointer to a CStr reference with length limit
+///
+/// # Safety
+/// - Validates pointer is non-null
+/// - Ensures null terminator exists within max_len bytes
+/// - Pointer must point to valid memory for at least max_len bytes
+/// - Pointer must remain valid for the returned lifetime
+///
+/// # Arguments
+/// * `ptr` - Raw C string pointer to validate
+/// * `max_len` - Maximum length to search for null terminator
+///
+/// # Errors
+/// - `WhisperError::NullPointer` if ptr is null
+/// - `WhisperError::InvalidString` if no null terminator found within max_len
+///
+/// # Examples
+/// ```ignore
+/// let text_ptr = whisper_get_text(...);
+/// let safe_str = unsafe { c_str_from_ptr_with_limit(text_ptr, 1024)? };
+/// ```
+pub(crate) unsafe fn c_str_from_ptr_with_limit<'a>(
+    ptr: *const c_char,
+    max_len: usize,
+) -> Result<&'a CStr, WhisperError> {
+    if ptr.is_null() {
+        return Err(WhisperError::NullPointer);
+    }
+
+    // Find null terminator within max_len
+    let bytes = std::slice::from_raw_parts(ptr as *const u8, max_len);
+    let len = bytes.iter().position(|&b| b == 0)
+        .ok_or(WhisperError::InvalidString)?;
+
+    let bounded = std::slice::from_raw_parts(ptr as *const u8, len + 1);
+    CStr::from_bytes_with_nul(bounded).map_err(|_| WhisperError::InvalidString)
+}
 
 /// Convert an array of 16 bit mono audio samples to a vector of 32 bit floats.
 ///

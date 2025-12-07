@@ -36,6 +36,10 @@ pub enum WhisperError {
     NullByteInString { idx: usize },
     /// Whisper returned a null pointer.
     NullPointer,
+    /// Invalid pointer detected (Phase 1.2)
+    InvalidPointer,
+    /// Invalid string format detected (Phase 1.2)
+    InvalidString,
     /// Generic whisper error. Varies depending on the function.
     GenericError(c_int),
     /// Whisper failed to convert the provided text into tokens.
@@ -105,6 +109,8 @@ impl std::fmt::Display for WhisperError {
                 idx
             ),
             NullPointer => write!(f, "Whisper returned a null pointer."),
+            InvalidPointer => write!(f, "Invalid pointer detected."),
+            InvalidString => write!(f, "Invalid string format detected."),
             InvalidText => write!(
                 f,
                 "Whisper failed to convert the provided text into tokens."
