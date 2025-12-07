@@ -1,4 +1,5 @@
 use crate::error::WhisperError;
+use crate::utilities::c_str_from_ptr_with_limit;
 use crate::WhisperTokenId;
 use std::borrow::Cow;
 use std::ffi::{c_int, CStr, CString};
@@ -284,10 +285,9 @@ impl WhisperInnerContext {
     // --- begin model_type_readable helpers ---
     fn model_type_readable_cstr(&self) -> Result<&CStr, WhisperError> {
         let ret = unsafe { whisper_rs_sys::whisper_model_type_readable(self.ctx) };
-        if ret.is_null() {
-            return Err(WhisperError::NullPointer);
-        }
-        Ok(unsafe { CStr::from_ptr(ret) })
+
+        // Use safe helper with reasonable limit (256 bytes for model type) - Phase 1.2.2
+        unsafe { c_str_from_ptr_with_limit(ret, 256) }
     }
     pub fn model_type_readable_bytes(&self) -> Result<&[u8], WhisperError> {
         Ok(self.model_type_readable_cstr()?.to_bytes())
@@ -303,10 +303,9 @@ impl WhisperInnerContext {
     // --- begin token functions ---
     fn token_to_cstr(&self, token_id: WhisperTokenId) -> Result<&CStr, WhisperError> {
         let ret = unsafe { whisper_rs_sys::whisper_token_to_str(self.ctx, token_id) };
-        if ret.is_null() {
-            return Err(WhisperError::NullPointer);
-        }
-        Ok(unsafe { CStr::from_ptr(ret) })
+
+        // Use safe helper with reasonable limit (1KB per token) - Phase 1.2.2
+        unsafe { c_str_from_ptr_with_limit(ret, 1024) }
     }
     pub fn token_to_bytes(&self, token_id: WhisperTokenId) -> Result<&[u8], WhisperError> {
         Ok(self.token_to_cstr(token_id)?.to_bytes())

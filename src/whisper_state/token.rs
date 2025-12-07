@@ -1,3 +1,4 @@
+use crate::utilities::c_str_from_ptr_with_limit;
 use crate::{WhisperError, WhisperSegment, WhisperTokenData, WhisperTokenId};
 use std::borrow::Cow;
 use std::ffi::{c_int, CStr};
@@ -96,10 +97,9 @@ impl<'a, 'b> WhisperToken<'a, 'b> {
                 self.token_idx,
             )
         };
-        if ret.is_null() {
-            return Err(WhisperError::NullPointer);
-        }
-        Ok(unsafe { CStr::from_ptr(ret) })
+
+        // Use safe helper with reasonable limit (1KB per token) - Phase 1.2.2
+        unsafe { c_str_from_ptr_with_limit(ret, 1024) }
     }
 
     /// Get the raw bytes of this token.

@@ -1,3 +1,4 @@
+use crate::utilities::c_str_from_ptr_with_limit;
 use crate::{WhisperError, WhisperState, WhisperToken};
 use std::borrow::Cow;
 use std::ffi::{c_int, CStr};
@@ -112,10 +113,9 @@ impl<'a> WhisperSegment<'a> {
                 self.segment_idx,
             )
         };
-        if ret.is_null() {
-            return Err(WhisperError::NullPointer);
-        }
-        Ok(unsafe { CStr::from_ptr(ret) })
+
+        // Use safe helper with reasonable limit (10KB per segment) - Phase 1.2.2
+        unsafe { c_str_from_ptr_with_limit(ret, 10000) }
     }
 
     /// Get the raw bytes of this segment.
