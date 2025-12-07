@@ -140,22 +140,28 @@ impl WhisperVadContextParams {
 /// You probably want to use [`Self::segments_from_samples`].
 pub struct WhisperVadContext {
     ptr: *mut whisper_vad_context,
+    // Store owned CString to prevent memory leak (Phase 1.1.2)
+    model_path_cstring: CString,
 }
 unsafe impl Send for WhisperVadContext {}
 unsafe impl Sync for WhisperVadContext {}
 
 impl WhisperVadContext {
     pub fn new(model_path: &str, params: WhisperVadContextParams) -> Result<Self, WhisperError> {
-        let model_path = CString::new(model_path)
-            .expect("VAD model path contains null byte")
-            .into_raw() as *const c_char;
-        let ptr =
-            unsafe { whisper_vad_init_from_file_with_params(model_path, params.into_inner()) };
+        let model_path_cstring = CString::new(model_path)
+            .expect("VAD model path contains null byte");
+
+        let ptr = unsafe {
+            whisper_vad_init_from_file_with_params(
+                model_path_cstring.as_ptr(),
+                params.into_inner(),
+            )
+        };
 
         if ptr.is_null() {
             Err(WhisperError::NullPointer)
         } else {
-            Ok(Self { ptr })
+            Ok(Self { ptr, model_path_cstring })
         }
     }
 
