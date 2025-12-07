@@ -471,8 +471,54 @@ impl Drop for WhisperInnerContext {
     }
 }
 
-// following implementations are safe
-// see https://github.com/ggerganov/whisper.cpp/issues/32#issuecomment-1272790388
+/// # Thread Safety
+///
+/// ## WhisperInnerContext
+///
+/// Based on whisper.cpp implementation and confirmed by maintainers:
+/// https://github.com/ggerganov/whisper.cpp/issues/32#issuecomment-1272790388
+///
+/// ### Send
+/// `WhisperInnerContext` is `Send` because:
+/// - Multiple contexts can be used concurrently from different threads
+/// - Each context manages its own C++ memory independently
+/// - No shared mutable state between contexts
+///
+/// ### Sync
+/// `WhisperInnerContext` is `Sync` because:
+/// - Read-only operations are thread-safe (e.g., `n_vocab()`, `is_multilingual()`)
+/// - The underlying C++ implementation uses const methods for query operations
+/// - `create_state()` is thread-safe - multiple threads can create states concurrently
+///
+/// ### Safe Operations (can be called from multiple threads):
+/// - `n_vocab()`, `n_text_ctx()`, `n_audio_ctx()`, `is_multilingual()` - query methods
+/// - `token_to_string()`, `model_type_readable_string()` - convert tokens to text
+/// - `create_state()` - create new WhisperState instances
+/// - All token-related query methods
+///
+/// ### Unsafe Operations (require external synchronization):
+/// - None currently identified in WhisperInnerContext itself
+/// - However, WhisperState operations (transcription) should not be concurrent on same state
+///
+/// ### Recommended Patterns:
+/// ```rust,ignore
+/// // Pattern 1: Share context between threads (read-only operations)
+/// let ctx = Arc::new(WhisperContext::new_with_params(path, params)?);
+/// let ctx_clone = Arc::clone(&ctx);
+/// thread::spawn(move || {
+///     let vocab_size = ctx_clone.n_vocab(); // Safe
+/// });
+///
+/// // Pattern 2: Create separate states per thread
+/// let ctx = Arc::new(WhisperContext::new_with_params(path, params)?);
+/// for _ in 0..4 {
+///     let ctx_clone = Arc::clone(&ctx);
+///     thread::spawn(move || {
+///         let mut state = ctx_clone.create_state().unwrap();
+///         // Each thread has its own state - safe
+///     });
+/// }
+/// ```
 unsafe impl Send for WhisperInnerContext {}
 unsafe impl Sync for WhisperInnerContext {}
 
