@@ -17,36 +17,40 @@ pub use token::{WhisperToken, WhisperTokenCandidate};
 ///
 /// ## WhisperState
 ///
-/// ### Send
+/// ### Send: Yes ✅
 /// `WhisperState` is `Send` because:
 /// - Each state manages its own independent C++ state object
 /// - States can be moved between threads safely
 /// - No shared mutable state with other WhisperState instances
 ///
-/// ### Sync
-/// `WhisperState` is `Sync` BUT with important caveats:
-/// - The state itself can be shared between threads via `&WhisperState`
-/// - **However**, mutable operations like `full()` transcription are NOT thread-safe
-/// - If you need to share a state, use `Mutex<WhisperState>` or `RwLock<WhisperState>`
+/// ### Sync: No ❌
+/// `WhisperState` does **NOT** implement `Sync` because:
+/// - Mutable operations like `full()` transcription are NOT thread-safe on the same state
+/// - The underlying C++ state object has no internal synchronization
+/// - Allowing `&WhisperState` to be shared would enable data races via `&mut` access
 ///
-/// ### Safe Operations (read-only, can be called concurrently):
-/// - `full_n_segments()` - get segment count
-/// - `get_segment()` - get segment by index
-/// - All methods that only read from the state
+/// **This is enforced at compile-time:** You cannot do `Arc<WhisperState>` - it won't compile!
 ///
-/// ### Unsafe Operations (require exclusive access):
-/// - `full()` - run full transcription (mutable, NOT thread-safe)
-/// - `pcm_to_mel()` - convert audio (mutable)
-/// - Any operation that modifies the state
-///
-/// ### Recommended Patterns:
+/// ### If You Need to Share Across Threads:
+/// Use `Arc<Mutex<WhisperState>>` which enforces exclusive access:
 /// ```rust,ignore
-/// // Pattern 1: One state per thread (best performance)
+/// let state = Arc::new(Mutex::new(ctx.create_state()?));
+/// let state_clone = Arc::clone(&state);
+/// thread::spawn(move || {
+///     let mut state = state_clone.lock().unwrap();
+///     state.full(params, &audio).unwrap();
+/// });
+/// ```
+///
+/// ### Recommended Pattern (Best Performance):
+/// **Create one state per thread** instead of sharing:
+/// ```rust,ignore
 /// let ctx = Arc::new(WhisperContext::new_with_params(path, params)?);
 /// let mut handles = vec![];
 /// for audio in audio_chunks {
 ///     let ctx_clone = Arc::clone(&ctx);
 ///     let handle = thread::spawn(move || {
+///         // Each thread has its own state - no locking needed!
 ///         let mut state = ctx_clone.create_state().unwrap();
 ///         let params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
 ///         state.full(params, &audio).unwrap();
@@ -54,31 +58,38 @@ pub use token::{WhisperToken, WhisperTokenCandidate};
 ///     });
 ///     handles.push(handle);
 /// }
-///
-/// // Pattern 2: Shared state with Mutex (if necessary)
-/// let ctx = Arc::new(WhisperContext::new_with_params(path, params)?);
-/// let state = Arc::new(Mutex::new(ctx.create_state().unwrap()));
-/// let state_clone = Arc::clone(&state);
-/// thread::spawn(move || {
-///     let mut state = state_clone.lock().unwrap();
-///     // Only one thread can transcribe at a time
-///     state.full(params, &audio).unwrap();
-/// });
 /// ```
 ///
-/// ### Important Notes:
-/// - **Do NOT** call `full()` on the same state from multiple threads simultaneously
-/// - **Prefer** creating separate states per thread for concurrent transcription
-/// - Each state is lightweight and creating multiple states is the recommended approach
+/// ### Why Not Sync?
+/// Consider this unsound code that `Sync` would allow:
+/// ```rust,ignore
+/// // If WhisperState: Sync, this would compile:
+/// let state = Arc::new(WhisperState::new(...));
+///
+/// // Thread 1 and 2 both have &WhisperState
+/// // With unsafe code, both could obtain &mut and cause data race!
+/// // By NOT implementing Sync, the compiler prevents this.
+/// ```
+///
+/// ### Operations:
+/// - `full()` - transcription (mutable, requires exclusive access)
+/// - `pcm_to_mel()` - convert audio (mutable)
+/// - `full_n_segments()` - query (immutable)
+/// - `get_segment()` - get segment (immutable)
+///
+/// **Bottom line:** One state per thread, or use `Mutex` if you must share.
 #[derive(Debug)]
 pub struct WhisperState {
     ctx: Arc<WhisperInnerContext>,
     ptr: *mut whisper_rs_sys::whisper_state,
 }
 
+// WhisperState is Send: can be moved between threads
 unsafe impl Send for WhisperState {}
 
-unsafe impl Sync for WhisperState {}
+// WhisperState is NOT Sync: &WhisperState cannot be shared between threads
+// This prevents data races on the mutable C++ state object
+// If you need to share, use Arc<Mutex<WhisperState>>
 
 impl Drop for WhisperState {
     fn drop(&mut self) {
