@@ -44,6 +44,12 @@ pub struct FullParams<'a, 'b> {
     phantom_lang: PhantomData<&'a str>,
     phantom_tokens: PhantomData<&'b [c_int]>,
     grammar: Option<Vec<whisper_rs_sys::whisper_grammar_element>>,
+
+    // Store owned CStrings to prevent memory leaks (Phase 1.1.1)
+    language_cstring: Option<CString>,
+    initial_prompt_cstring: Option<CString>,
+    vad_model_path_cstring: Option<CString>,
+
     progress_callback_safe: Option<Arc<Box<dyn FnMut(i32)>>>,
     abort_callback_safe: Option<Arc<Box<dyn FnMut() -> bool>>>,
     segment_calllback_safe: Option<Arc<SegmentCallbackFn>>,
@@ -85,6 +91,9 @@ impl<'a, 'b> FullParams<'a, 'b> {
             phantom_lang: PhantomData,
             phantom_tokens: PhantomData,
             grammar: None,
+            language_cstring: None,
+            initial_prompt_cstring: None,
+            vad_model_path_cstring: None,
             progress_callback_safe: None,
             abort_callback_safe: None,
             segment_calllback_safe: None,
@@ -283,12 +292,14 @@ impl<'a, 'b> FullParams<'a, 'b> {
     ///
     /// Defaults to "en".
     pub fn set_language(&mut self, language: Option<&'a str>) {
-        self.fp.language = match language {
-            Some(language) => CString::new(language)
-                .expect("Language contains null byte")
-                .into_raw() as *const _,
-            None => std::ptr::null(),
-        };
+        self.language_cstring = language.map(|lang| {
+            CString::new(lang).expect("Language contains null byte")
+        });
+
+        self.fp.language = self.language_cstring
+            .as_ref()
+            .map(|s| s.as_ptr())
+            .unwrap_or(std::ptr::null());
     }
 
     /// Set `detect_language`.
@@ -806,9 +817,14 @@ impl<'a, 'b> FullParams<'a, 'b> {
     /// // ... further usage of params ...
     /// ```
     pub fn set_initial_prompt(&mut self, initial_prompt: &str) {
-        self.fp.initial_prompt = CString::new(initial_prompt)
-            .expect("Initial prompt contains null byte")
-            .into_raw() as *const c_char;
+        self.initial_prompt_cstring = Some(
+            CString::new(initial_prompt).expect("Initial prompt contains null byte")
+        );
+
+        self.fp.initial_prompt = self.initial_prompt_cstring
+            .as_ref()
+            .map(|s| s.as_ptr())
+            .unwrap_or(std::ptr::null()) as *const c_char;
     }
 
     /// # EXPERIMENTAL
@@ -876,15 +892,17 @@ impl<'a, 'b> FullParams<'a, 'b> {
     /// # Panics
     /// This method will panic if `vad_model_path` contains a null byte.
     pub fn set_vad_model_path(&mut self, vad_model_path: Option<&str>) {
-        self.fp.vad_model_path = if let Some(vad_model_path) = vad_model_path {
-            CString::new(vad_model_path)
-                .expect("VAD model path contains null byte")
-                .into_raw() as *const c_char
-        } else {
-            self.fp.vad = false;
+        self.vad_model_path_cstring = vad_model_path.map(|path| {
+            CString::new(path).expect("VAD model path contains null byte")
+        });
 
-            std::ptr::null()
-        };
+        self.fp.vad_model_path = self.vad_model_path_cstring
+            .as_ref()
+            .map(|s| s.as_ptr())
+            .unwrap_or_else(|| {
+                self.fp.vad = false;
+                std::ptr::null()
+            }) as *const c_char;
     }
 
     /// Replace the VAD model parameters.
