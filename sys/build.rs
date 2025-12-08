@@ -20,6 +20,33 @@ fn main() {
         panic!("whisper.cpp not found at {}", whisper_root.display());
     }
 
+    // Version checking
+    let expected_version = "1.8.2";  // Update this when upgrading whisper.cpp
+    let version_file = whisper_root.join("VERSION");
+
+    if version_file.exists() {
+        // Read and check version
+        match std::fs::read_to_string(&version_file) {
+            Ok(actual_version) => {
+                let actual_version = actual_version.trim();
+                if actual_version != expected_version {
+                    println!("cargo:warning=whisper.cpp version mismatch!");
+                    println!("cargo:warning=Expected: {}", expected_version);
+                    println!("cargo:warning=Found: {}", actual_version);
+                    println!("cargo:warning=Bindings may be incompatible!");
+                }
+            }
+            Err(e) => {
+                println!("cargo:warning=Failed to read VERSION file: {}", e);
+            }
+        }
+    } else {
+        // VERSION file doesn't exist - inform user
+        println!("cargo:warning=No VERSION file found in whisper.cpp distribution");
+        println!("cargo:warning=Assuming version: {}", expected_version);
+        println!("cargo:warning=Ensure your prebuilt whisper.cpp matches this version");
+    }
+
     // Determine library directory based on target platform
     let lib_dir = if target.contains("linux") && target.contains("x86_64") {
         whisper_root.join("linux-x86_64")
@@ -92,8 +119,8 @@ fn main() {
     println!("cargo:rustc-link-lib=dylib=ggml-base");
     println!("cargo:rustc-link-lib=dylib=ggml-cpu");
 
-    // Set version (hardcoded for now, or could be read from a version file)
-    println!("cargo:WHISPER_CPP_VERSION=1.8.2");
+    // Set version for cargo metadata
+    println!("cargo:WHISPER_CPP_VERSION={}", expected_version);
 }
 
 // From https://github.com/alexcrichton/cc-rs/blob/fba7feded71ee4f63cfe885673ead6d7b4f2f454/src/lib.rs#L2462
