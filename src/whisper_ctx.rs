@@ -315,16 +315,6 @@ impl WhisperInnerContext {
         Ok(self.model_type_readable_cstr()?.to_str()?.to_string())
     }
 
-    /// Get the readable model type as a borrowed reference.
-    ///
-    /// **Prefer [`Self::model_type_readable_string()`] for safe code.**
-    #[deprecated(
-        since = "0.16.0",
-        note = "Use model_type_readable_string() instead. This method returns a reference to C++ memory."
-    )]
-    pub fn model_type_readable_str(&self) -> Result<&str, WhisperError> {
-        Ok(self.model_type_readable_cstr()?.to_str()?)
-    }
     pub fn model_type_readable_str_lossy(&self) -> Result<Cow<'_, str>, WhisperError> {
         Ok(self.model_type_readable_cstr()?.to_string_lossy())
     }
@@ -346,16 +336,6 @@ impl WhisperInnerContext {
         Ok(self.token_to_cstr(token_id)?.to_str()?.to_string())
     }
 
-    /// Get token text as a borrowed reference.
-    ///
-    /// **Prefer [`Self::token_to_string()`] for safe code.**
-    #[deprecated(
-        since = "0.16.0",
-        note = "Use token_to_string() instead. This method returns a reference to C++ memory."
-    )]
-    pub fn token_to_str(&self, token_id: WhisperTokenId) -> Result<&str, WhisperError> {
-        Ok(self.token_to_cstr(token_id)?.to_str()?)
-    }
     pub fn token_to_str_lossy(
         &self,
         token_id: WhisperTokenId,

@@ -155,20 +155,6 @@ impl<'a> WhisperSegment<'a> {
     /// 3. The C++ side doesn't free the string
     ///
     /// **Prefer [`Self::to_string()`] for safe code.**
-    ///
-    /// # Returns
-    /// * On success: the UTF-8 validated string.
-    /// * On failure: [`WhisperError::NullPointer`] or [`WhisperError::InvalidUtf8`]
-    ///
-    /// # C++ equivalent
-    /// `const char * whisper_full_get_segment_text(struct whisper_context * ctx, int i_segment)`
-    #[deprecated(
-        since = "0.16.0",
-        note = "Use to_string() instead. This method returns a reference to C++ memory that may be invalidated."
-    )]
-    pub fn to_str(&self) -> Result<&'a str, WhisperError> {
-        Ok(self.to_raw_cstr()?.to_str()?)
-    }
 
     /// Get the text of this segment.
     ///

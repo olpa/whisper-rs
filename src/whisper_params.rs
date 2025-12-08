@@ -981,14 +981,6 @@ impl<'a, 'b> FullParams<'a, 'b> {
     /// Calling this more than once will overwrite the previous forced tokens.
     ///
     /// Defaults to empty.
-    #[deprecated(
-        since = "0.16.0",
-        note = "Use set_forced_tokens_owned() instead. This method borrows tokens which may be invalidated."
-    )]
-    pub fn set_forced_tokens(&mut self, tokens: &'b [c_int]) {
-        // For backwards compatibility, copy the tokens internally
-        self.set_forced_tokens_owned(tokens.to_vec());
-    }
 
     /// Clear any previously set forced tokens.
     ///
