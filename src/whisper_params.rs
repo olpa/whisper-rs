@@ -53,9 +53,11 @@ pub struct FullParams<'a, 'b> {
     // Store owned forced tokens vector to prevent use-after-free (Phase 2.2.1)
     forced_tokens: Option<Vec<c_int>>,
 
+    // Ownership tracking for safe callbacks to ensure proper cleanup
+    // Using Arc allows FullParams to be cloned while maintaining shared ownership
     progress_callback_safe: Option<Arc<Box<dyn FnMut(i32)>>>,
     abort_callback_safe: Option<Arc<Box<dyn FnMut() -> bool>>>,
-    segment_calllback_safe: Option<Arc<SegmentCallbackFn>>,
+    segment_callback_safe: Option<Arc<Box<dyn FnMut(SegmentCallbackData)>>>,
 }
 
 impl<'a, 'b> FullParams<'a, 'b> {
@@ -100,7 +102,7 @@ impl<'a, 'b> FullParams<'a, 'b> {
             forced_tokens: None,
             progress_callback_safe: None,
             abort_callback_safe: None,
-            segment_calllback_safe: None,
+            segment_callback_safe: None,
         }
     }
 
@@ -505,19 +507,20 @@ impl<'a, 'b> FullParams<'a, 'b> {
 
         match closure.into() {
             Some(closure) => {
-                // Stable address
-                let closure = Box::new(closure) as SegmentCallbackFn;
-                // Thin pointer
-                let closure = Box::new(closure);
-                // Raw pointer
-                let closure = Box::into_raw(closure);
+                // Create boxed closure
+                let boxed_closure: Box<dyn FnMut(SegmentCallbackData)> = Box::new(closure);
+                // Wrap in Arc for shared ownership (allows cloning FullParams)
+                let arc_closure = Arc::new(boxed_closure);
+                // Extract raw pointer from Arc without consuming it
+                let raw_ptr = Arc::as_ptr(&arc_closure) as *const Box<dyn FnMut(SegmentCallbackData)> as *mut c_void;
 
-                self.fp.new_segment_callback_user_data = closure as *mut c_void;
+                self.fp.new_segment_callback_user_data = raw_ptr;
                 self.fp.new_segment_callback = Some(trampoline::<SegmentCallbackFn>);
-                self.segment_calllback_safe = None;
+                // Keep Arc alive to prevent deallocation
+                self.segment_callback_safe = Some(arc_closure);
             }
             None => {
-                self.segment_calllback_safe = None;
+                self.segment_callback_safe = None;
                 self.fp.new_segment_callback = None;
                 self.fp.new_segment_callback_user_data = std::ptr::null_mut::<c_void>();
             }
@@ -603,19 +606,20 @@ impl<'a, 'b> FullParams<'a, 'b> {
 
         match closure.into() {
             Some(closure) => {
-                // Stable address
-                let closure = Box::new(closure) as SegmentCallbackFn;
-                // Thin pointer
-                let closure = Box::new(closure);
-                // Raw pointer
-                let closure = Box::into_raw(closure);
+                // Create boxed closure
+                let boxed_closure: Box<dyn FnMut(SegmentCallbackData)> = Box::new(closure);
+                // Wrap in Arc for shared ownership (allows cloning FullParams)
+                let arc_closure = Arc::new(boxed_closure);
+                // Extract raw pointer from Arc without consuming it
+                let raw_ptr = Arc::as_ptr(&arc_closure) as *const Box<dyn FnMut(SegmentCallbackData)> as *mut c_void;
 
-                self.fp.new_segment_callback_user_data = closure as *mut c_void;
+                self.fp.new_segment_callback_user_data = raw_ptr;
                 self.fp.new_segment_callback = Some(trampoline::<SegmentCallbackFn>);
-                self.segment_calllback_safe = None;
+                // Keep Arc alive to prevent deallocation
+                self.segment_callback_safe = Some(arc_closure);
             }
             None => {
-                self.segment_calllback_safe = None;
+                self.segment_callback_safe = None;
                 self.fp.new_segment_callback = None;
                 self.fp.new_segment_callback_user_data = std::ptr::null_mut::<c_void>();
             }
@@ -676,11 +680,15 @@ impl<'a, 'b> FullParams<'a, 'b> {
         match closure.into() {
             Some(closure) => {
                 self.fp.progress_callback = Some(trampoline::<Box<dyn FnMut(i32)>>);
-                let boxed_closure = Box::new(closure) as Box<dyn FnMut(i32)>;
-                let boxed_closure = Box::new(boxed_closure);
-                let raw_ptr = Box::into_raw(boxed_closure);
-                self.fp.progress_callback_user_data = raw_ptr as *mut c_void;
-                self.progress_callback_safe = None;
+                // Create boxed closure
+                let boxed_closure: Box<dyn FnMut(i32)> = Box::new(closure);
+                // Wrap in Arc for shared ownership (allows cloning FullParams)
+                let arc_closure = Arc::new(boxed_closure);
+                // Extract raw pointer from Arc without consuming it
+                let raw_ptr = Arc::as_ptr(&arc_closure) as *const Box<dyn FnMut(i32)> as *mut c_void;
+                self.fp.progress_callback_user_data = raw_ptr;
+                // Keep Arc alive to prevent deallocation
+                self.progress_callback_safe = Some(arc_closure);
             }
             None => {
                 self.fp.progress_callback = None;
@@ -722,16 +730,17 @@ impl<'a, 'b> FullParams<'a, 'b> {
 
         match closure.into() {
             Some(closure) => {
-                // Stable address
-                let closure = Box::new(closure) as Box<dyn FnMut() -> bool>;
-                // Thin pointer
-                let closure = Box::new(closure);
-                // Raw pointer
-                let closure = Box::into_raw(closure);
+                // Create boxed closure
+                let boxed_closure: Box<dyn FnMut() -> bool> = Box::new(closure);
+                // Wrap in Arc for shared ownership (allows cloning FullParams)
+                let arc_closure = Arc::new(boxed_closure);
+                // Extract raw pointer from Arc without consuming it
+                let raw_ptr = Arc::as_ptr(&arc_closure) as *const Box<dyn FnMut() -> bool> as *mut c_void;
 
                 self.fp.abort_callback = Some(trampoline::<F>);
-                self.fp.abort_callback_user_data = closure as *mut c_void;
-                self.abort_callback_safe = None;
+                self.fp.abort_callback_user_data = raw_ptr;
+                // Keep Arc alive to prevent deallocation
+                self.abort_callback_safe = Some(arc_closure);
             }
             None => {
                 self.fp.abort_callback = None;
@@ -1024,6 +1033,20 @@ impl<'a, 'b> FullParams<'a, 'b> {
     /// Replace the VAD model parameters.
     pub fn set_vad_params(&mut self, params: WhisperVadParams) {
         self.fp.vad_params = params.into_inner();
+    }
+}
+
+impl Drop for FullParams<'_, '_> {
+    fn drop(&mut self) {
+        // Callbacks are now managed through owned fields:
+        // - segment_callback_safe
+        // - progress_callback_safe
+        // - abort_callback_safe
+        //
+        // These will be automatically dropped when FullParams is dropped,
+        // properly cleaning up the heap-allocated closures.
+        //
+        // No manual cleanup needed here since we maintain ownership.
     }
 }
 
