@@ -1,5 +1,5 @@
 use crate::WhisperError;
-use std::ffi::{c_char, CString};
+use std::ffi::CString;
 use std::os::raw::c_int;
 use whisper_rs_sys::{
     whisper_vad_context, whisper_vad_context_params, whisper_vad_detect_speech, whisper_vad_free,
@@ -141,6 +141,7 @@ impl WhisperVadContextParams {
 pub struct WhisperVadContext {
     ptr: *mut whisper_vad_context,
     // Store owned CString to prevent memory leak (Phase 1.1.2)
+    #[allow(dead_code)]
     model_path_cstring: CString,
 }
 unsafe impl Send for WhisperVadContext {}
