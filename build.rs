@@ -1,17 +1,41 @@
-use std::env;
+use std::process::Command;
+
+fn get_git_version() -> String {
+    let tag = Command::new("git")
+        .args(["describe", "--tags", "--abbrev=0"])
+        .output()
+        .ok()
+        .and_then(|output| {
+            if output.status.success() {
+                String::from_utf8(output.stdout).ok()
+            } else {
+                None
+            }
+        })
+        .map(|s| s.trim().to_string())
+        .unwrap_or_else(|| "untagged".to_string());
+
+    let commit = Command::new("git")
+        .args(["rev-parse", "--short=8", "HEAD"])
+        .output()
+        .ok()
+        .and_then(|output| {
+            if output.status.success() {
+                String::from_utf8(output.stdout).ok()
+            } else {
+                None
+            }
+        })
+        .map(|s| s.trim().to_string())
+        .unwrap_or_else(|| "unknown".to_string());
+
+    format!("{}-{}", tag, commit)
+}
 
 fn main() {
-    let whisper_cpp_version = env::var("DEP_WHISPER_WHISPER_CPP_VERSION").unwrap_or_else(|e| {
-        if env::var("DOCS_RS").is_ok() {
-            // not sure why but this fails on docs.rs
-            // return a default string
-            "0.0.0-fake".to_string()
-        } else {
-            panic!("Failed to find upstream whisper.cpp version: your build environment is messed up. {}", e);
-        }
-    });
+    let whisper_rs_version = get_git_version();
     println!(
-        "cargo:rustc-env=WHISPER_CPP_VERSION={}",
-        whisper_cpp_version
+        "cargo:rustc-env=WHISPER_RS_VERSION={}",
+        whisper_rs_version
     );
 }

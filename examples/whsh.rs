@@ -73,7 +73,7 @@ fn do_transcription(
 
     // Set forced tokens if provided
     if let Some(tokens) = forced_tokens {
-        params.set_forced_tokens(tokens);
+        params.set_forced_tokens_owned(tokens.to_vec());
     }
 
     // Run the transcription
@@ -129,6 +129,8 @@ fn do_transcription(
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    println!("whisper-rs {} | whisper.cpp {}", whisper_rs::get_version(), whisper_rs::get_whisper_cpp_version());
+
     let args: Vec<String> = std::env::args().collect();
 
     if args.len() != 3 {

@@ -52,8 +52,24 @@ pub type WhisperAbortCallback = whisper_rs_sys::ggml_abort_callback;
 pub type WhisperLogCallback = whisper_rs_sys::ggml_log_callback;
 pub type DtwAhead = whisper_rs_sys::whisper_ahead;
 
-/// The version of whisper.cpp that whisper-rs was linked with.
-pub static WHISPER_CPP_VERSION: &str = env!("WHISPER_CPP_VERSION");
+/// The version of whisper-rs (git tag + commit hash).
+pub static WHISPER_RS_VERSION: &str = env!("WHISPER_RS_VERSION");
+
+/// Get the version of whisper-rs (git tag + commit hash).
+pub fn get_version() -> &'static str {
+    WHISPER_RS_VERSION
+}
+
+/// Get the version of whisper.cpp by calling the C function.
+/// Returns the version string from whisper.cpp (git tag + commit hash).
+pub fn get_whisper_cpp_version() -> String {
+    unsafe {
+        let c_str = whisper_rs_sys::whisper_version();
+        std::ffi::CStr::from_ptr(c_str)
+            .to_string_lossy()
+            .into_owned()
+    }
+}
 
 /// Redirect all whisper.cpp and GGML logs to logging hooks installed by whisper-rs.
 ///
