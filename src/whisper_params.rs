@@ -714,9 +714,7 @@ impl<'a, 'b> FullParams<'a, 'b> {
     {
         use std::ffi::c_void;
 
-        unsafe extern "C" fn trampoline<F>(user_data: *mut c_void) -> bool
-        where
-            F: FnMut() -> bool,
+        unsafe extern "C" fn trampoline(user_data: *mut c_void) -> bool
         {
             // NEW: Early validation (Phase 1.4.1)
             if user_data.is_null() {
@@ -724,8 +722,10 @@ impl<'a, 'b> FullParams<'a, 'b> {
                 return false;
             }
 
-            let user_data = &mut *(user_data as *mut F);
-            user_data()
+            // FIX: Cast to the actual type stored (Box<dyn FnMut() -> bool>), not the concrete closure type F
+            // The raw_ptr points to a Box<dyn FnMut() -> bool>, so we must cast to that type
+            let boxed = &mut *(user_data as *mut Box<dyn FnMut() -> bool>);
+            boxed()
         }
 
         match closure.into() {
@@ -737,7 +737,7 @@ impl<'a, 'b> FullParams<'a, 'b> {
                 // Extract raw pointer from Arc without consuming it
                 let raw_ptr = Arc::as_ptr(&arc_closure) as *const Box<dyn FnMut() -> bool> as *mut c_void;
 
-                self.fp.abort_callback = Some(trampoline::<F>);
+                self.fp.abort_callback = Some(trampoline);
                 self.fp.abort_callback_user_data = raw_ptr;
                 // Keep Arc alive to prevent deallocation
                 self.abort_callback_safe = Some(arc_closure);
