@@ -659,27 +659,26 @@ impl<'a, 'b> FullParams<'a, 'b> {
         use std::ffi::c_void;
         use whisper_rs_sys::{whisper_context, whisper_state};
 
-        unsafe extern "C" fn trampoline<F>(
+        unsafe extern "C" fn trampoline(
             ctx: *mut whisper_context,
             state: *mut whisper_state,
             progress: c_int,
             user_data: *mut c_void,
-        ) where
-            F: FnMut(i32),
-        {
+        ) {
             // NEW: Early validation (Phase 1.4.1)
             if ctx.is_null() || state.is_null() || user_data.is_null() {
                 eprintln!("ERROR: Null pointer in progress callback, skipping");
                 return;
             }
 
-            let user_data = &mut *(user_data as *mut F);
+            // FIX: Cast to the actual type stored (Box<dyn FnMut(i32)>), not the concrete closure type F
+            let user_data = &mut *(user_data as *mut Box<dyn FnMut(i32)>);
             user_data(progress);
         }
 
         match closure.into() {
             Some(closure) => {
-                self.fp.progress_callback = Some(trampoline::<Box<dyn FnMut(i32)>>);
+                self.fp.progress_callback = Some(trampoline);
                 // Create boxed closure
                 let boxed_closure: Box<dyn FnMut(i32)> = Box::new(closure);
                 // Wrap in Arc for shared ownership (allows cloning FullParams)
