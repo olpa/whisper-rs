@@ -7,13 +7,13 @@ use std::path::PathBuf;
 
 fn main() {
     println!("cargo:rerun-if-changed=wrapper.h");
-    println!("cargo:rerun-if-env-changed=HANDSFREEAI_DEV_HOME");
+    println!("cargo:rerun-if-env-changed=HANDSFREEVC_DEV_HOME");
 
     let target = env::var("TARGET").unwrap();
 
     // Get prebuilt whisper.cpp location
-    let whisper_dev_home = env::var("HANDSFREEAI_DEV_HOME")
-        .unwrap_or_else(|_| panic!("HANDSFREEAI_DEV_HOME environment variable must be set"));
+    let whisper_dev_home = env::var("HANDSFREEVC_DEV_HOME")
+        .unwrap_or_else(|_| panic!("HANDSFREEVC_DEV_HOME environment variable must be set"));
 
     let whisper_root = PathBuf::from(&whisper_dev_home).join("whisper.cpp");
     if !whisper_root.exists() {

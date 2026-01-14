@@ -82,9 +82,9 @@ All disabled by default unless otherwise specified.
 See [BUILDING.md](BUILDING.md) for instructions for building whisper-rs on Windows and OSX M1. Linux builds should just
 work out of the box.
 
-### Installing to HANDSFREEAI_DEV_HOME
+### Installing to HANDSFREEVC_DEV_HOME
 
-To build and install whisper-rs to `$HANDSFREEAI_DEV_HOME/whisper-rs/` with the same layout as whisper.cpp:
+To build and install whisper-rs to `$HANDSFREEVC_DEV_HOME/whisper-rs/` with the same layout as whisper.cpp:
 
 ```bash
 # Build and install for Linux only
@@ -96,7 +96,7 @@ To build and install whisper-rs to `$HANDSFREEAI_DEV_HOME/whisper-rs/` with the 
 
 This creates a directory structure similar to whisper.cpp:
 ```
-$HANDSFREEAI_DEV_HOME/whisper-rs/
+$HANDSFREEVC_DEV_HOME/whisper-rs/
 ├── include/              # Documentation and bindings reference
 ├── linux-x86_64/        # Native Linux Rust libraries (.rlib)
 ├── android/             # Android Rust libraries by ABI
@@ -113,14 +113,14 @@ $HANDSFREEAI_DEV_HOME/whisper-rs/
 This project uses prebuilt whisper.cpp libraries for Android. To build for Android:
 
 **Prerequisites:**
-- Set `HANDSFREEAI_DEV_HOME` environment variable pointing to the directory containing prebuilt whisper.cpp libraries
+- Set `HANDSFREEVC_DEV_HOME` environment variable pointing to the directory containing prebuilt whisper.cpp libraries
 - Install Android target: `rustup target add aarch64-linux-android` (or other Android targets)
-- Prebuilt whisper.cpp libraries must be available at `$HANDSFREEAI_DEV_HOME/whisper.cpp/android/{ABI}/`
+- Prebuilt whisper.cpp libraries must be available at `$HANDSFREEVC_DEV_HOME/whisper.cpp/android/{ABI}/`
   where `{ABI}` is one of: `arm64-v8a`, `armeabi-v7a`, `x86_64`, `x86`
 
 **Build command:**
 ```bash
-export HANDSFREEAI_DEV_HOME=/path/to/your/dev/home
+export HANDSFREEVC_DEV_HOME=/path/to/your/dev/home
 cargo build --target aarch64-linux-android --release
 ```
 

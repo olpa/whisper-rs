@@ -1,15 +1,15 @@
 #!/bin/bash
 set -e
 
-# Build and install whisper-rs to HANDSFREEAI_DEV_HOME
+# Build and install whisper-rs to HANDSFREEVC_DEV_HOME
 # Similar layout to whisper.cpp installation
 
-if [ -z "$HANDSFREEAI_DEV_HOME" ]; then
-    echo "Error: HANDSFREEAI_DEV_HOME environment variable is not set"
+if [ -z "$HANDSFREEVC_DEV_HOME" ]; then
+    echo "Error: HANDSFREEVC_DEV_HOME environment variable is not set"
     exit 1
 fi
 
-INSTALL_ROOT="${HANDSFREEAI_DEV_HOME}/whisper-rs"
+INSTALL_ROOT="${HANDSFREEVC_DEV_HOME}/whisper-rs"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 echo "==> Building whisper-rs for multiple platforms..."
@@ -98,7 +98,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-whisper-rs = { path = "${HANDSFREEAI_DEV_HOME}/whisper-rs" }
+whisper-rs = { path = "${HANDSFREEVC_DEV_HOME}/whisper-rs" }
 ```
 
 Or reference the installed artifacts directly in your build system.
@@ -115,7 +115,7 @@ The main types and functions are exported from `whisper_rs` crate:
 For FFI bindings, use:
 ```toml
 [dependencies]
-whisper-rs-sys = { path = "${HANDSFREEAI_DEV_HOME}/whisper-rs/sys" }
+whisper-rs-sys = { path = "${HANDSFREEVC_DEV_HOME}/whisper-rs/sys" }
 ```
 
 The `whisper-rs-sys` crate provides direct FFI bindings to whisper.cpp C API.
@@ -195,12 +195,12 @@ whisper-rs/
 
 whisper-rs requires prebuilt whisper.cpp libraries. Ensure they are available at:
 ```
-$HANDSFREEAI_DEV_HOME/whisper.cpp/
+$HANDSFREEVC_DEV_HOME/whisper.cpp/
 ```
 
 Set the environment variable:
 ```bash
-export HANDSFREEAI_DEV_HOME=/path/to/dev/home
+export HANDSFREEVC_DEV_HOME=/path/to/dev/home
 ```
 
 ## Usage in Rust Projects
@@ -211,7 +211,7 @@ Add to your `Cargo.toml`:
 [dependencies]
 whisper-rs = { path = "/path/to/whisper-rs" }
 # Or using environment variable:
-# whisper-rs = { path = "${HANDSFREEAI_DEV_HOME}/whisper-rs" }
+# whisper-rs = { path = "${HANDSFREEVC_DEV_HOME}/whisper-rs" }
 ```
 
 This will use the prebuilt .rlib files automatically based on your target platform.
@@ -222,11 +222,11 @@ The package includes all source files, so Cargo can:
 
 ### Environment Setup
 
-Ensure `HANDSFREEAI_DEV_HOME` is set and points to the directory containing
+Ensure `HANDSFREEVC_DEV_HOME` is set and points to the directory containing
 both `whisper.cpp/` and `whisper-rs/`:
 
 ```bash
-export HANDSFREEAI_DEV_HOME=/path/to/dev/home
+export HANDSFREEVC_DEV_HOME=/path/to/dev/home
 ```
 
 ## Backtrack Branch Features
@@ -271,6 +271,6 @@ echo "    To use in your project, add to Cargo.toml:"
 echo "    [dependencies]"
 echo "    whisper-rs = { path = \"${INSTALL_ROOT}\" }"
 echo ""
-echo "    Or set HANDSFREEAI_DEV_HOME environment variable:"
-echo "    export HANDSFREEAI_DEV_HOME=${HANDSFREEAI_DEV_HOME}"
+echo "    Or set HANDSFREEVC_DEV_HOME environment variable:"
+echo "    export HANDSFREEVC_DEV_HOME=${HANDSFREEVC_DEV_HOME}"
 echo ""
