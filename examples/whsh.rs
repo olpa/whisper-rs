@@ -1,12 +1,13 @@
 /*
 Interactive whisper shell (whsh) - Rust implementation
 
-Usage: cargo run --example whsh <model_path> <audio_file>
+Usage: cargo run --example whsh [-l lang] <model_path> <audio_file>
 
 After transcription, enters interactive mode with commands:
 - help, ?          : Show available commands
 - pos N top [K]    : Show top K candidate tokens at position N (default K=10)
 - pos N id TID     : Force token TID at position N and re-transcribe
+- lang [code]      : Show/change language and re-transcribe (e.g., 'en', 'de', 'de-en' for translation)
 - quit, exit       : Exit the shell
 
 Architecture: Encode-once, decode-many
@@ -30,6 +31,9 @@ fn print_help() {
     println!("  help, ?           - Show this help message");
     println!("  pos N top [K]     - Show top K candidates at position N (default K=10)");
     println!("  pos N id TID      - Force token TID at position N and re-transcribe");
+    println!("  lang [code]       - Show/change language and re-transcribe");
+    println!("                      Use language code (e.g., 'en', 'de', 'fr') for transcription");
+    println!("                      Use 'code-en' (e.g., 'de-en') for translation to English");
     println!("  quit, exit        - Exit the shell");
     println!();
 }
@@ -44,9 +48,11 @@ fn format_timestamp(t: i64) -> String {
 }
 
 /// Perform transcription and return token position map
+/// lang: language code (e.g., "en", "de", "fr") or "code-en" for automatic translation
 fn do_transcription(
     state: &mut WhisperState,
     pcm: &[f32],
+    lang: &str,
     forced_tokens: Option<&[i32]>,
     skip_encode: bool,
 ) -> Result<Vec<TokenPosition>, Box<dyn std::error::Error>> {
@@ -56,8 +62,18 @@ fn do_transcription(
     params.set_print_progress(false);
     params.set_print_timestamps(true);
     params.set_print_special(false);
-    params.set_translate(false);
-    params.set_language(Some("en"));
+
+    // Parse language parameter: if it ends with "-en", enable translation
+    let (translate, language) = if lang.len() >= 3 && lang.ends_with("-en") {
+        // Extract the source language code (before "-en")
+        let source_lang = &lang[..lang.len() - 3];
+        (true, source_lang)
+    } else {
+        (false, lang)
+    };
+
+    params.set_translate(translate);
+    params.set_language(Some(language));
     params.set_n_threads(1);
     params.set_no_timestamps(false);
     params.set_token_timestamps(false);
@@ -133,19 +149,55 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let args: Vec<String> = std::env::args().collect();
 
-    if args.len() != 3 {
-        eprintln!("Usage: {} <model_path> <audio_file>", args[0]);
+    // Parse command-line arguments
+    let mut model_path: Option<String> = None;
+    let mut audio_path: Option<String> = None;
+    let mut language = String::from("en");  // Default language (mutable for in-app lang command)
+
+    let mut i = 1;
+    while i < args.len() {
+        match args[i].as_str() {
+            "-l" | "--lang" => {
+                if i + 1 >= args.len() {
+                    eprintln!("error: -l/--lang requires a language code argument");
+                    std::process::exit(1);
+                }
+                i += 1;
+                language = args[i].clone();
+            }
+            _ => {
+                // First positional argument is model_path, second is audio_path
+                if model_path.is_none() {
+                    model_path = Some(args[i].clone());
+                } else if audio_path.is_none() {
+                    audio_path = Some(args[i].clone());
+                } else {
+                    eprintln!("error: unexpected argument '{}'", args[i]);
+                    std::process::exit(1);
+                }
+            }
+        }
+        i += 1;
+    }
+
+    // Check if required arguments are provided
+    if model_path.is_none() || audio_path.is_none() {
+        eprintln!("Usage: {} [-l lang] <model_path> <audio_file>", args[0]);
         eprintln!();
         eprintln!("Interactive whisper shell - transcribes audio then enters interactive mode.");
-        eprintln!("Fixed settings: English, CPU only, single thread");
+        eprintln!("Options:");
+        eprintln!("  -l, --lang <code>  Language code for transcription (default: en)");
+        eprintln!("                     Use language code (e.g., 'en', 'de', 'fr') for transcription");
+        eprintln!("                     Use 'code-en' for automatic translation to English");
+        eprintln!("Fixed settings: CPU only, single thread");
         std::process::exit(1);
     }
 
-    let model_path = &args[1];
-    let audio_path = &args[2];
+    let model_path = model_path.unwrap();
+    let audio_path = audio_path.unwrap();
 
     // Read audio file
-    let reader = hound::WavReader::open(audio_path)?;
+    let reader = hound::WavReader::open(&audio_path)?;
     let spec = reader.spec();
 
     let samples: Vec<i16> = reader.into_samples::<i16>().map(|s| s.unwrap()).collect();
@@ -165,7 +217,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     eprintln!(
         "Processing '{}' ({} samples, {:.1} sec)",
-        audio_path,
+        &audio_path,
         pcm.len(),
         pcm.len() as f32 / 16000.0
     );
@@ -174,13 +226,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut ctx_params = WhisperContextParameters::default();
     ctx_params.use_gpu(false);
 
-    let ctx = WhisperContext::new_with_params(model_path, ctx_params)?;
+    let ctx = WhisperContext::new_with_params(&model_path, ctx_params)?;
 
     // Create state that will be reused
     let mut state = ctx.create_state()?;
 
     // Perform initial transcription
-    let mut token_map = do_transcription(&mut state, &pcm, None, false)?;
+    let mut token_map = do_transcription(&mut state, &pcm, &language, None, false)?;
 
     if token_map.is_empty() {
         eprintln!("No tokens produced from transcription");
@@ -218,6 +270,34 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             "help" | "?" => {
                 print_help();
+            }
+            "lang" => {
+                if parts.len() < 2 {
+                    // No argument provided - show current language
+                    println!("Current language: {}", language);
+                    println!("Usage: lang <code>");
+                    println!("  <code> can be a language code (e.g., 'en', 'de', 'fr') for transcription");
+                    println!("  or 'code-en' (e.g., 'de-en', 'fr-en') for automatic translation to English");
+                    continue;
+                }
+
+                let new_lang = parts[1];
+                println!("Changing language from '{}' to '{}' and re-transcribing...", language, new_lang);
+                language = new_lang.to_string();
+
+                // Re-transcribe with new language (skip_encode=false to get fresh encoding)
+                match do_transcription(&mut state, &pcm, &language, None, false) {
+                    Ok(new_map) => {
+                        if new_map.is_empty() {
+                            println!("Re-transcription failed: no tokens produced");
+                        } else {
+                            token_map = new_map;
+                        }
+                    }
+                    Err(e) => {
+                        println!("Re-transcription failed: {}", e);
+                    }
+                }
             }
             "pos" => {
                 if parts.len() < 3 {
@@ -304,7 +384,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         }
 
                         // Re-transcribe with skip_encode=true and forced_tokens
-                        match do_transcription(&mut state, &pcm, Some(&forced_tokens), true) {
+                        match do_transcription(&mut state, &pcm, &language, Some(&forced_tokens), true) {
                             Ok(new_map) => {
                                 if new_map.is_empty() {
                                     println!("Re-transcription failed: no tokens produced");
