@@ -8,28 +8,30 @@
 // Run with:
 // cargo run --example test_callback_crash
 
-use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters, SegmentCallbackData};
 use std::ffi::c_void;
+use whisper_rs::{
+    FullParams, SamplingStrategy, SegmentCallbackData, WhisperContext, WhisperContextParameters,
+};
 
 fn main() {
     println!("POC: Testing callback vulnerabilities (may crash!)...\n");
 
     // Get model path from environment or use default
-    let model_path = std::env::var("WHISPER_MODEL")
-        .unwrap_or_else(|_| {
-            println!("Note: WHISPER_MODEL not set, using default path");
-            "../whisper.cpp/models/ggml-tiny.en.bin".to_string()
-        });
+    let model_path = std::env::var("WHISPER_MODEL").unwrap_or_else(|_| {
+        println!("Note: WHISPER_MODEL not set, using default path");
+        "../whisper.cpp/models/ggml-tiny.en.bin".to_string()
+    });
 
     println!("Loading model: {}", model_path);
-    let ctx = match WhisperContext::new_with_params(&model_path, WhisperContextParameters::default()) {
-        Ok(ctx) => ctx,
-        Err(e) => {
-            eprintln!("Failed to load model: {:?}", e);
-            eprintln!("Please set WHISPER_MODEL to a valid model path");
-            std::process::exit(1);
-        }
-    };
+    let ctx =
+        match WhisperContext::new_with_params(&model_path, WhisperContextParameters::default()) {
+            Ok(ctx) => ctx,
+            Err(e) => {
+                eprintln!("Failed to load model: {:?}", e);
+                eprintln!("Please set WHISPER_MODEL to a valid model path");
+                std::process::exit(1);
+            }
+        };
 
     let mut state = ctx.create_state().expect("Failed to create state");
 
@@ -43,7 +45,10 @@ fn main() {
 
         // Set up a callback that will be invoked
         params.set_segment_callback_safe(|data: SegmentCallbackData| {
-            println!("  Callback invoked: segment={}, text='{}'", data.segment, data.text);
+            println!(
+                "  Callback invoked: segment={}, text='{}'",
+                data.segment, data.text
+            );
             // If we get here without validation, we might be processing invalid data
         });
 
@@ -86,7 +91,7 @@ fn main() {
             let audio: Vec<f32> = vec![0.0; 16000];
 
             match state.full(params, &audio) {
-                Ok(_) => {},
+                Ok(_) => {}
                 Err(e) => {
                     eprintln!("  ✗ Iteration {} failed: {:?}", i, e);
                     break;

@@ -34,8 +34,5 @@ fn get_git_version() -> String {
 
 fn main() {
     let whisper_rs_version = get_git_version();
-    println!(
-        "cargo:rustc-env=WHISPER_RS_VERSION={}",
-        whisper_rs_version
-    );
+    println!("cargo:rustc-env=WHISPER_RS_VERSION={}", whisper_rs_version);
 }

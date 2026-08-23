@@ -1,13 +1,12 @@
+use std::sync::{Arc, Mutex};
+use std::thread;
 /// Test to demonstrate and verify thread safety guarantees
 ///
 /// WhisperState is Send but NOT Sync, which means:
 /// - You CAN move it between threads
 /// - You CANNOT share &WhisperState between threads (won't compile)
 /// - You MUST use Mutex if you need to share
-
 use whisper_rs::{WhisperContext, WhisperContextParameters};
-use std::sync::{Arc, Mutex};
-use std::thread;
 
 #[test]
 fn test_whisper_state_is_send() {
@@ -80,7 +79,7 @@ fn test_recommended_pattern_separate_states() {
 
     let ctx = Arc::new(
         WhisperContext::new_with_params(&model_path, WhisperContextParameters::default())
-            .expect("Failed to create context")
+            .expect("Failed to create context"),
     );
 
     let mut handles = vec![];
@@ -90,8 +89,7 @@ fn test_recommended_pattern_separate_states() {
         let ctx_clone = Arc::clone(&ctx);
         let handle = thread::spawn(move || {
             // Each thread creates its own state - no locking needed!
-            let state = ctx_clone.create_state()
-                .expect("Failed to create state");
+            let state = ctx_clone.create_state().expect("Failed to create state");
 
             let n_segments = state.full_n_segments();
             assert_eq!(n_segments, 0, "Thread {} got wrong segment count", i);

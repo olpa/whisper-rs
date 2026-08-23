@@ -6,27 +6,29 @@
 // Run with:
 // cargo run --example test_callback_safety
 
-use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters, SegmentCallbackData};
+use whisper_rs::{
+    FullParams, SamplingStrategy, SegmentCallbackData, WhisperContext, WhisperContextParameters,
+};
 
 fn main() {
     println!("Testing callback safety and null pointer handling...\n");
 
     // Get model path from environment or use default
-    let model_path = std::env::var("WHISPER_MODEL")
-        .unwrap_or_else(|_| {
-            println!("Note: WHISPER_MODEL not set, using default path");
-            "../whisper.cpp/models/ggml-tiny.en.bin".to_string()
-        });
+    let model_path = std::env::var("WHISPER_MODEL").unwrap_or_else(|_| {
+        println!("Note: WHISPER_MODEL not set, using default path");
+        "../whisper.cpp/models/ggml-tiny.en.bin".to_string()
+    });
 
     println!("Loading model: {}", model_path);
-    let ctx = match WhisperContext::new_with_params(&model_path, WhisperContextParameters::default()) {
-        Ok(ctx) => ctx,
-        Err(e) => {
-            eprintln!("Failed to load model: {:?}", e);
-            eprintln!("Please set WHISPER_MODEL to a valid model path");
-            std::process::exit(1);
-        }
-    };
+    let ctx =
+        match WhisperContext::new_with_params(&model_path, WhisperContextParameters::default()) {
+            Ok(ctx) => ctx,
+            Err(e) => {
+                eprintln!("Failed to load model: {:?}", e);
+                eprintln!("Please set WHISPER_MODEL to a valid model path");
+                std::process::exit(1);
+            }
+        };
 
     // Create a state for transcription
     let mut state = ctx.create_state().expect("Failed to create state");
@@ -40,8 +42,10 @@ fn main() {
         params.set_print_realtime(false);
 
         params.set_segment_callback_safe(|data: SegmentCallbackData| {
-            println!("  Callback: segment={}, text='{}', t0={}, t1={}",
-                     data.segment, data.text, data.start_timestamp, data.end_timestamp);
+            println!(
+                "  Callback: segment={}, text='{}', t0={}, t1={}",
+                data.segment, data.text, data.start_timestamp, data.end_timestamp
+            );
         });
 
         // Generate 1 second of silence (16kHz)
@@ -68,7 +72,10 @@ fn main() {
             params.set_print_realtime(false);
 
             params.set_segment_callback_safe(move |data: SegmentCallbackData| {
-                println!("  Run {}: segment {}, text='{}'", run_num, data.segment, data.text);
+                println!(
+                    "  Run {}: segment {}, text='{}'",
+                    run_num, data.segment, data.text
+                );
             });
 
             let audio: Vec<f32> = vec![0.0; 16000];
@@ -89,8 +96,10 @@ fn main() {
         params.set_print_realtime(false);
 
         params.set_segment_callback_safe_lossy(|data: SegmentCallbackData| {
-            println!("  Lossy callback: segment={}, text='{}'",
-                     data.segment, data.text);
+            println!(
+                "  Lossy callback: segment={}, text='{}'",
+                data.segment, data.text
+            );
         });
 
         let audio: Vec<f32> = vec![0.0; 16000];
@@ -123,5 +132,7 @@ fn main() {
 
     println!("\n✅ All callback safety tests completed!");
     println!("\nNote: Check stderr for any validation warnings or errors from the callbacks.");
-    println!("After implementing null pointer checks, you should see error messages for invalid data.");
+    println!(
+        "After implementing null pointer checks, you should see error messages for invalid data."
+    );
 }

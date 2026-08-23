@@ -2,7 +2,6 @@
 ///
 /// This test shows that passing a reference to forced tokens can lead to
 /// use-after-free bugs when the source vector is dropped or moved.
-
 use whisper_rs::{FullParams, SamplingStrategy};
 
 #[test]
@@ -24,9 +23,7 @@ fn test_forced_tokens_lifetime_issue() {
     // Using params in a transcription could cause a segfault or read garbage data
 
     println!("Forced tokens pointer is now dangling!");
-    println!(
-        "This demonstrates why we need to store the owned vector in FullParams"
-    );
+    println!("This demonstrates why we need to store the owned vector in FullParams");
 }
 
 #[test]

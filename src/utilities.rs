@@ -32,7 +32,9 @@ pub(crate) unsafe fn c_str_from_ptr_with_limit<'a>(
 
     // Find null terminator within max_len
     let bytes = std::slice::from_raw_parts(ptr as *const u8, max_len);
-    let len = bytes.iter().position(|&b| b == 0)
+    let len = bytes
+        .iter()
+        .position(|&b| b == 0)
         .ok_or(WhisperError::InvalidString)?;
 
     let bounded = std::slice::from_raw_parts(ptr as *const u8, len + 1);

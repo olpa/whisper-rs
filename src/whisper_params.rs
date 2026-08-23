@@ -298,11 +298,11 @@ impl<'a, 'b> FullParams<'a, 'b> {
     ///
     /// Defaults to "en".
     pub fn set_language(&mut self, language: Option<&'a str>) {
-        self.language_cstring = language.map(|lang| {
-            CString::new(lang).expect("Language contains null byte")
-        });
+        self.language_cstring =
+            language.map(|lang| CString::new(lang).expect("Language contains null byte"));
 
-        self.fp.language = self.language_cstring
+        self.fp.language = self
+            .language_cstring
             .as_ref()
             .map(|s| s.as_ptr())
             .unwrap_or(std::ptr::null());
@@ -465,8 +465,10 @@ impl<'a, 'b> FullParams<'a, 'b> {
 
                 // NEW: Validate segment count (Phase 1.4.1)
                 if n_segments < 0 || n_new > n_segments {
-                    eprintln!("ERROR: Invalid segment count: n_segments={}, n_new={}",
-                              n_segments, n_new);
+                    eprintln!(
+                        "ERROR: Invalid segment count: n_segments={}, n_new={}",
+                        n_segments, n_new
+                    );
                     return;
                 }
 
@@ -512,7 +514,9 @@ impl<'a, 'b> FullParams<'a, 'b> {
                 // Wrap in Arc for shared ownership (allows cloning FullParams)
                 let arc_closure = Arc::new(boxed_closure);
                 // Extract raw pointer from Arc without consuming it
-                let raw_ptr = Arc::as_ptr(&arc_closure) as *const Box<dyn FnMut(SegmentCallbackData)> as *mut c_void;
+                let raw_ptr = Arc::as_ptr(&arc_closure)
+                    as *const Box<dyn FnMut(SegmentCallbackData)>
+                    as *mut c_void;
 
                 self.fp.new_segment_callback_user_data = raw_ptr;
                 self.fp.new_segment_callback = Some(trampoline::<SegmentCallbackFn>);
@@ -567,8 +571,10 @@ impl<'a, 'b> FullParams<'a, 'b> {
 
                 // NEW: Validate segment count (Phase 1.4.1)
                 if n_segments < 0 || n_new > n_segments {
-                    eprintln!("ERROR: Invalid segment count: n_segments={}, n_new={}",
-                              n_segments, n_new);
+                    eprintln!(
+                        "ERROR: Invalid segment count: n_segments={}, n_new={}",
+                        n_segments, n_new
+                    );
                     return;
                 }
 
@@ -611,7 +617,9 @@ impl<'a, 'b> FullParams<'a, 'b> {
                 // Wrap in Arc for shared ownership (allows cloning FullParams)
                 let arc_closure = Arc::new(boxed_closure);
                 // Extract raw pointer from Arc without consuming it
-                let raw_ptr = Arc::as_ptr(&arc_closure) as *const Box<dyn FnMut(SegmentCallbackData)> as *mut c_void;
+                let raw_ptr = Arc::as_ptr(&arc_closure)
+                    as *const Box<dyn FnMut(SegmentCallbackData)>
+                    as *mut c_void;
 
                 self.fp.new_segment_callback_user_data = raw_ptr;
                 self.fp.new_segment_callback = Some(trampoline::<SegmentCallbackFn>);
@@ -684,7 +692,8 @@ impl<'a, 'b> FullParams<'a, 'b> {
                 // Wrap in Arc for shared ownership (allows cloning FullParams)
                 let arc_closure = Arc::new(boxed_closure);
                 // Extract raw pointer from Arc without consuming it
-                let raw_ptr = Arc::as_ptr(&arc_closure) as *const Box<dyn FnMut(i32)> as *mut c_void;
+                let raw_ptr =
+                    Arc::as_ptr(&arc_closure) as *const Box<dyn FnMut(i32)> as *mut c_void;
                 self.fp.progress_callback_user_data = raw_ptr;
                 // Keep Arc alive to prevent deallocation
                 self.progress_callback_safe = Some(arc_closure);
@@ -713,8 +722,7 @@ impl<'a, 'b> FullParams<'a, 'b> {
     {
         use std::ffi::c_void;
 
-        unsafe extern "C" fn trampoline(user_data: *mut c_void) -> bool
-        {
+        unsafe extern "C" fn trampoline(user_data: *mut c_void) -> bool {
             // NEW: Early validation (Phase 1.4.1)
             if user_data.is_null() {
                 eprintln!("ERROR: Null pointer in abort callback, returning false");
@@ -734,7 +742,8 @@ impl<'a, 'b> FullParams<'a, 'b> {
                 // Wrap in Arc for shared ownership (allows cloning FullParams)
                 let arc_closure = Arc::new(boxed_closure);
                 // Extract raw pointer from Arc without consuming it
-                let raw_ptr = Arc::as_ptr(&arc_closure) as *const Box<dyn FnMut() -> bool> as *mut c_void;
+                let raw_ptr =
+                    Arc::as_ptr(&arc_closure) as *const Box<dyn FnMut() -> bool> as *mut c_void;
 
                 self.fp.abort_callback = Some(trampoline);
                 self.fp.abort_callback_user_data = raw_ptr;
@@ -905,11 +914,11 @@ impl<'a, 'b> FullParams<'a, 'b> {
     /// // ... further usage of params ...
     /// ```
     pub fn set_initial_prompt(&mut self, initial_prompt: &str) {
-        self.initial_prompt_cstring = Some(
-            CString::new(initial_prompt).expect("Initial prompt contains null byte")
-        );
+        self.initial_prompt_cstring =
+            Some(CString::new(initial_prompt).expect("Initial prompt contains null byte"));
 
-        self.fp.initial_prompt = self.initial_prompt_cstring
+        self.fp.initial_prompt = self
+            .initial_prompt_cstring
             .as_ref()
             .map(|s| s.as_ptr())
             .unwrap_or(std::ptr::null()) as *const c_char;
@@ -1016,11 +1025,11 @@ impl<'a, 'b> FullParams<'a, 'b> {
     /// # Panics
     /// This method will panic if `vad_model_path` contains a null byte.
     pub fn set_vad_model_path(&mut self, vad_model_path: Option<&str>) {
-        self.vad_model_path_cstring = vad_model_path.map(|path| {
-            CString::new(path).expect("VAD model path contains null byte")
-        });
+        self.vad_model_path_cstring = vad_model_path
+            .map(|path| CString::new(path).expect("VAD model path contains null byte"));
 
-        self.fp.vad_model_path = self.vad_model_path_cstring
+        self.fp.vad_model_path = self
+            .vad_model_path_cstring
             .as_ref()
             .map(|s| s.as_ptr())
             .unwrap_or_else(|| {

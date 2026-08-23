@@ -16,7 +16,10 @@ Architecture: Encode-once, decode-many
 */
 
 use std::io::{self, BufRead, Write};
-use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters, WhisperState, WhisperTokenId};
+use whisper_rs::{
+    FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters, WhisperState,
+    WhisperTokenId,
+};
 
 /// Maps global token position to segment/token indices
 #[derive(Debug, Clone)]
@@ -103,7 +106,12 @@ fn do_transcription(
             let t0 = segment.start_timestamp();
             let t1 = segment.end_timestamp();
             let text = segment.to_str_lossy().unwrap_or_default();
-            println!("[{} --> {}]  {}", format_timestamp(t0), format_timestamp(t1), text);
+            println!(
+                "[{} --> {}]  {}",
+                format_timestamp(t0),
+                format_timestamp(t1),
+                text
+            );
         }
     }
     println!();
@@ -145,14 +153,18 @@ fn do_transcription(
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("whisper-rs {} | whisper.cpp {}", whisper_rs::get_version(), whisper_rs::get_whisper_cpp_version());
+    println!(
+        "whisper-rs {} | whisper.cpp {}",
+        whisper_rs::get_version(),
+        whisper_rs::get_whisper_cpp_version()
+    );
 
     let args: Vec<String> = std::env::args().collect();
 
     // Parse command-line arguments
     let mut model_path: Option<String> = None;
     let mut audio_path: Option<String> = None;
-    let mut language = String::from("en");  // Default language (mutable for in-app lang command)
+    let mut language = String::from("en"); // Default language (mutable for in-app lang command)
 
     let mut i = 1;
     while i < args.len() {
@@ -187,7 +199,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         eprintln!("Interactive whisper shell - transcribes audio then enters interactive mode.");
         eprintln!("Options:");
         eprintln!("  -l, --lang <code>  Language code for transcription (default: en)");
-        eprintln!("                     Use language code (e.g., 'en', 'de', 'fr') for transcription");
+        eprintln!(
+            "                     Use language code (e.g., 'en', 'de', 'fr') for transcription"
+        );
         eprintln!("                     Use 'code-en' for automatic translation to English");
         eprintln!("Fixed settings: CPU only, single thread");
         std::process::exit(1);
@@ -282,7 +296,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
 
                 let new_lang = parts[1];
-                println!("Changing language from '{}' to '{}' and re-transcribing...", language, new_lang);
+                println!(
+                    "Changing language from '{}' to '{}' and re-transcribing...",
+                    language, new_lang
+                );
                 language = new_lang.to_string();
 
                 // Re-transcribe with new language (skip_encode=false to get fresh encoding)
@@ -314,7 +331,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 };
 
                 if pos_n >= token_map.len() {
-                    println!("Error: position {} out of range [0, {}]", pos_n, token_map.len() - 1);
+                    println!(
+                        "Error: position {} out of range [0, {}]",
+                        pos_n,
+                        token_map.len() - 1
+                    );
                     continue;
                 }
 
@@ -340,7 +361,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                                 for i in 0..k {
                                     let cand = token.get_top_candidate(i as i32);
-                                    let token_text = ctx.token_to_str_lossy(cand.id)
+                                    let token_text = ctx
+                                        .token_to_str_lossy(cand.id)
                                         .unwrap_or_else(|_| "<?>".into());
                                     println!(
                                         "  {}: id={} token='{}' prob={:.4} logprob={:.4}",
@@ -384,7 +406,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         }
 
                         // Re-transcribe with skip_encode=true and forced_tokens
-                        match do_transcription(&mut state, &pcm, &language, Some(&forced_tokens), true) {
+                        match do_transcription(
+                            &mut state,
+                            &pcm,
+                            &language,
+                            Some(&forced_tokens),
+                            true,
+                        ) {
                             Ok(new_map) => {
                                 if new_map.is_empty() {
                                     println!("Re-transcription failed: no tokens produced");
@@ -398,12 +426,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         }
                     }
                     _ => {
-                        println!("Unknown subcommand: '{}'. Usage: pos N top [K] or pos N id TID", subcmd);
+                        println!(
+                            "Unknown subcommand: '{}'. Usage: pos N top [K] or pos N id TID",
+                            subcmd
+                        );
                     }
                 }
             }
             _ => {
-                println!("Unknown command: '{}'. Type 'help' or '?' for available commands.", cmd);
+                println!(
+                    "Unknown command: '{}'. Type 'help' or '?' for available commands.",
+                    cmd
+                );
             }
         }
     }

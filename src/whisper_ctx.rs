@@ -92,7 +92,9 @@ impl WhisperInnerContext {
 
         // Use MaybeUninit for proper uninitialized memory handling (Phase 1.3)
         let mut tokens: Vec<MaybeUninit<WhisperTokenId>> = Vec::with_capacity(max_tokens);
-        unsafe { tokens.set_len(max_tokens); }
+        unsafe {
+            tokens.set_len(max_tokens);
+        }
 
         let ret = unsafe {
             whisper_rs_sys::whisper_tokenize(

@@ -149,20 +149,20 @@ unsafe impl Sync for WhisperVadContext {}
 
 impl WhisperVadContext {
     pub fn new(model_path: &str, params: WhisperVadContextParams) -> Result<Self, WhisperError> {
-        let model_path_cstring = CString::new(model_path)
-            .expect("VAD model path contains null byte");
+        let model_path_cstring =
+            CString::new(model_path).expect("VAD model path contains null byte");
 
         let ptr = unsafe {
-            whisper_vad_init_from_file_with_params(
-                model_path_cstring.as_ptr(),
-                params.into_inner(),
-            )
+            whisper_vad_init_from_file_with_params(model_path_cstring.as_ptr(), params.into_inner())
         };
 
         if ptr.is_null() {
             Err(WhisperError::NullPointer)
         } else {
-            Ok(Self { ptr, model_path_cstring })
+            Ok(Self {
+                ptr,
+                model_path_cstring,
+            })
         }
     }
 

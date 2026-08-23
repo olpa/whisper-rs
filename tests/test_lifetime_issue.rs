@@ -2,7 +2,6 @@
 ///
 /// This test shows that returning references to C++ memory can lead to
 /// use-after-free bugs when the C++ side invalidates the memory.
-
 use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters};
 
 #[test]

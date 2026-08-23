@@ -47,21 +47,27 @@ fn main() {
 
     let mut leaked_bytes = 0;
     for i in 0..1000 {
-        let path = format!("model_{}.bin", i % 10);  // 10 different paths
+        let path = format!("model_{}.bin", i % 10); // 10 different paths
         let cstring = CString::new(path.clone()).unwrap();
         leaked_bytes += cstring.as_bytes_with_nul().len();
 
         // This is what the code does:
-        let _raw_ptr = cstring.into_raw();  // Memory leaked!
-        // CString is now leaked, never freed
+        let _raw_ptr = cstring.into_raw(); // Memory leaked!
+                                           // CString is now leaked, never freed
 
         if i % 100 == 0 {
-            println!("  Iteration {}/1000: leaked {} bytes so far", i, leaked_bytes);
+            println!(
+                "  Iteration {}/1000: leaked {} bytes so far",
+                i, leaked_bytes
+            );
         }
     }
 
     println!("\n  ✓ Completed simulation");
-    println!("  Total leaked: {} bytes in 1000 iterations\n", leaked_bytes);
+    println!(
+        "  Total leaked: {} bytes in 1000 iterations\n",
+        leaked_bytes
+    );
 
     println!("SOLUTION (following plan lines 113-135):");
     println!("=========================================\n");

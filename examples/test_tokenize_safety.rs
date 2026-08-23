@@ -19,10 +19,8 @@ fn main() {
     let model_path = "ggml-tiny.bin";
 
     println!("Loading model: {}", model_path);
-    let ctx = match WhisperContext::new_with_params(
-        model_path,
-        WhisperContextParameters::default(),
-    ) {
+    let ctx = match WhisperContext::new_with_params(model_path, WhisperContextParameters::default())
+    {
         Ok(ctx) => {
             println!("✓ Model loaded successfully\n");
             ctx

@@ -79,7 +79,10 @@ fn main() {
 
                     if tokens.len() > 1 {
                         println!("\n  ⚠️  VULNERABILITY DEMONSTRATED!");
-                        println!("  C function returned {} tokens but max was 1!", tokens.len());
+                        println!(
+                            "  C function returned {} tokens but max was 1!",
+                            tokens.len()
+                        );
                         println!("  This would be undefined behavior!");
                     } else {
                         println!("  ℹ️  whisper.cpp respected max_tokens (good)");
